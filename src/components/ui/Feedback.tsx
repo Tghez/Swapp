@@ -66,3 +66,25 @@ export function UrgentBadge({ className }: { className?: string }) {
     </span>
   );
 }
+
+/** Marks a shift whose owner is open to a swap, not only a straight handoff. */
+export function SwapBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-pill bg-secondary/15 px-2 py-0.5 text-xs font-bold text-secondary-fg",
+        className,
+      )}
+    >
+      <svg
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+        className="size-3"
+      >
+        <path d="M6.5 3a.75.75 0 01.75.75v1.5H15a2 2 0 012 2V9a.75.75 0 01-1.5 0V7.25a.5.5 0 00-.5-.5H7.25v1.5a.75.75 0 01-1.28.53l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5A.75.75 0 016.5 3zm7 8.75a.75.75 0 011.28-.53l2.5 2.5a.75.75 0 010 1.06l-2.5 2.5a.75.75 0 01-1.28-.53v-1.5H5a2 2 0 01-2-2V11a.75.75 0 011.5 0v1.75a.5.5 0 00.5.5h7.25v-1.5z" />
+      </svg>
+      גם להחלפה
+    </span>
+  );
+}

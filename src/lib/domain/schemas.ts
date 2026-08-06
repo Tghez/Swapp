@@ -82,6 +82,7 @@ export function createHandoffSchema(now: Date) {
       internalUnit: z.enum(PNIMIT_UNIT_IDS).nullable().default(null),
       note: noteSchema.default(""),
       urgent: z.boolean().default(false),
+      willingToSwap: z.boolean().default(false),
     })
     .superRefine((values, ctx) => {
       if (values.department === "pnimit" && !values.internalUnit) {

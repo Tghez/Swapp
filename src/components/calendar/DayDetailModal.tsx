@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button, ExternalButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Card";
-import { ErrorBanner, UrgentBadge } from "@/components/ui/Feedback";
+import { ErrorBanner, SwapBadge, UrgentBadge } from "@/components/ui/Feedback";
 import { formatFullDate } from "@/lib/date/calendar";
 import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import {
@@ -126,6 +126,7 @@ function ShiftDetail({
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-base font-bold text-text">{location}</h3>
         {shift.urgent && !handedOff && <UrgentBadge />}
+        {shift.willingToSwap && !handedOff && <SwapBadge />}
         {handedOff && (
           <span className="rounded-pill bg-text/10 px-2 py-0.5 text-xs font-bold text-muted">
             נמסרה

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
@@ -36,6 +37,7 @@ interface FormState {
   internalUnit: string;
   note: string;
   urgent: boolean;
+  willingToSwap: boolean;
 }
 
 const BLANK: FormState = {
@@ -47,6 +49,7 @@ const BLANK: FormState = {
   internalUnit: "",
   note: "",
   urgent: false,
+  willingToSwap: false,
 };
 
 export function HandoffForm() {
@@ -60,6 +63,7 @@ export function HandoffForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showUrgentTip, setShowUrgentTip] = useState(false);
 
   const range = useMemo(() => getSelectableRange(now), [now]);
   const schema = useMemo(() => createHandoffSchema(now), [now]);
@@ -108,6 +112,17 @@ export function HandoffForm() {
 
   const noteWords = countWords(values.note);
 
+  // A one-off nudge, not a permanent hint: appears right after the intern
+  // checks the box, then fades on its own — the disabled/urgencyTaken states
+  // already explain themselves via the hint text below.
+  function handleUrgentChange(checked: boolean) {
+    update("urgent", checked);
+    setShowUrgentTip(checked);
+    if (checked) {
+      window.setTimeout(() => setShowUrgentTip(false), 3500);
+    }
+  }
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setEdits((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
@@ -132,6 +147,7 @@ export function HandoffForm() {
       internalUnit: values.internalUnit || null,
       note: values.note,
       urgent,
+      willingToSwap: values.willingToSwap,
     });
 
     if (!parsed.success) {
@@ -251,18 +267,38 @@ export function HandoffForm() {
           }
         />
 
+        <div className="relative">
+          <div
+            role="status"
+            className={cn(
+              "pointer-events-none absolute -top-9 start-4 z-10 rounded-card border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text shadow-md transition-all duration-200",
+              showUrgentTip
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-1",
+            )}
+          >
+            ניתן לסמן רק תורנות אחת בחודש כדחופה
+          </div>
+          <CheckboxField
+            label="דחוף לי למסור"
+            checked={urgent}
+            disabled={urgencyTaken || !values.date}
+            onChange={handleUrgentChange}
+            hint={
+              !values.date
+                ? "יש לבחור תאריך תחילה"
+                : urgencyTaken
+                  ? "כבר סימנת תורנות דחופה לחודש הזה"
+                  : undefined
+            }
+          />
+        </div>
+
         <CheckboxField
-          label="התורנות דחופה"
-          checked={urgent}
-          disabled={urgencyTaken || !values.date}
-          onChange={(checked) => update("urgent", checked)}
-          hint={
-            !values.date
-              ? "יש לבחור תאריך תחילה"
-              : urgencyTaken
-                ? "כבר סימנת תורנות דחופה לחודש הזה"
-                : "ניתן לסמן תורנות אחת כדחופה בכל חודש"
-          }
+          label="מוכן גם להחלפה"
+          checked={values.willingToSwap}
+          onChange={(checked) => update("willingToSwap", checked)}
+          hint="פתוח גם להחליף תורנויות, לא רק למסור"
         />
       </Card>
 

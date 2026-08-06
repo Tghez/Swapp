@@ -31,6 +31,12 @@ export function ShiftChip({ shift }: { shift: Shift }) {
           className="size-1.5 shrink-0 rounded-full bg-urgent"
         />
       )}
+      {shift.willingToSwap && !handedOff && (
+        <span
+          aria-hidden="true"
+          className="size-1.5 shrink-0 rounded-full bg-secondary"
+        />
+      )}
       <span className="truncate">
         {formatLocation(shift.department, shift.internalUnit)}
       </span>
@@ -54,6 +60,10 @@ export function Legend() {
       <li className="flex items-center gap-1.5 text-xs text-muted">
         <span className="size-2.5 rounded-full bg-urgent" />
         דחוף
+      </li>
+      <li className="flex items-center gap-1.5 text-xs text-muted">
+        <span className="size-2.5 rounded-full bg-secondary" />
+        גם להחלפה
       </li>
     </ul>
   );

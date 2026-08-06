@@ -63,6 +63,7 @@ service cloud.firestore {
         && (data.internalUnit == null || data.internalUnit is string)
         && (data.note == null || (data.note is string && data.note.size() <= 300))
         && data.urgent is bool
+        && data.willingToSwap is bool
         && data.expireAt is timestamp;
     }
 

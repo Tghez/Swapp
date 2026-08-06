@@ -118,6 +118,7 @@ export async function createShift(
     internalUnit: input.internalUnit,
     note: input.note,
     urgent: input.urgent,
+    willingToSwap: input.willingToSwap,
     status: "open",
     takenBy: null,
     interestCount: 0,

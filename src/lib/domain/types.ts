@@ -41,6 +41,7 @@ export interface Shift {
   internalUnit: PnimitUnitId | null;
   note: string | null;
   urgent: boolean;
+  willingToSwap: boolean;
   status: ShiftStatus;
   takenBy: ShiftTakenBy | null;
   interestCount: number;
@@ -80,4 +81,5 @@ export interface HandoffInput {
   internalUnit: PnimitUnitId | null;
   note: string | null;
   urgent: boolean;
+  willingToSwap: boolean;
 }

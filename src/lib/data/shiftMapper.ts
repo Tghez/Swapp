@@ -24,6 +24,7 @@ export function toShiftFromSnapshot(id: string, data: DocumentData): Shift {
     internalUnit: isPnimitUnitId(data.internalUnit) ? data.internalUnit : null,
     note: typeof data.note === "string" && data.note ? data.note : null,
     urgent: data.urgent === true,
+    willingToSwap: data.willingToSwap === true,
     status: data.status === "handedOff" ? "handedOff" : "open",
     takenBy:
       takenBy && takenBy.uid

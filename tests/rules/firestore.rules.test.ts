@@ -46,6 +46,7 @@ function shiftDoc(ownerId: string, overrides: Record<string, unknown> = {}) {
     internalUnit: "gimel",
     note: null,
     urgent: false,
+    willingToSwap: false,
     status: "open",
     takenBy: null,
     interestCount: 0,

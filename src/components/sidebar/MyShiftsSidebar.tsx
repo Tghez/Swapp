@@ -7,7 +7,12 @@ import {
   ButtonLink,
   ExternalButtonLink,
 } from "@/components/ui/Button";
-import { ErrorBanner, Spinner, UrgentBadge } from "@/components/ui/Feedback";
+import {
+  ErrorBanner,
+  Spinner,
+  SwapBadge,
+  UrgentBadge,
+} from "@/components/ui/Feedback";
 import { cn } from "@/lib/cn";
 import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import { formatFullDate } from "@/lib/date/calendar";
@@ -135,6 +140,7 @@ function MyShiftCard({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {shift.urgent && !handedOff && <UrgentBadge />}
+          {shift.willingToSwap && !handedOff && <SwapBadge />}
           {handedOff && (
             <span className="rounded-pill bg-secondary/20 px-2 py-0.5 text-xs font-bold text-secondary-fg">
               ✓ נמסרה
