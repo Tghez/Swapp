@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Swapp palette (PDR §9.7). Every colour in the app comes from here —
+ * no ad-hoc hex values in components.
+ */
+@theme {
+  /* Surfaces */
+  --color-bg: #faf3e7;
+  --color-surface: #fffcf7;
+  --color-border: #e3d5bc;
+
+  /* Primary — amber, filled pill buttons with dark-brown text */
+  --color-primary: #ef9f27;
+  --color-primary-hover: #e08f16;
+  --color-primary-fg: #412402;
+
+  /* Secondary — eucalyptus, outline buttons */
+  --color-secondary: #7fa893;
+  --color-secondary-hover: #6d9682;
+  --color-secondary-fg: #395c4b;
+
+  /* Text */
+  --color-text: #412402;
+  --color-muted: #8a7a5c;
+
+  /* Urgency — deliberately NOT the amber primary, so urgent shifts
+     never read as "just another button" (PDR §9.7). */
+  --color-urgent: #d6452a;
+  --color-urgent-soft: #fbe0d9;
+
+  /* Department accents. `soft` = chip background, plain = dot / border.
+     Chip labels always render in --color-text on the soft tint, so colour
+     is never the only carrier of meaning. */
+  --color-dept-pnimit: #b8760c;
+  --color-dept-pnimit-soft: #fbe8c8;
+  --color-dept-miyun-klali: #b65f30;
+  --color-dept-miyun-klali-soft: #f5dccb;
+  --color-dept-miyun-yeladim: #4f7a64;
+  --color-dept-miyun-yeladim-soft: #dce9e2;
+  --color-dept-kirurgia: #4a6c8c;
+  --color-dept-kirurgia-soft: #d8e2eb;
+
+  /* Corners — pill buttons, 14px cards */
+  --radius-card: 14px;
+  --radius-pill: 9999px;
+
+  --font-sans: var(--font-rubik), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  /* iOS standalone PWA: keep content clear of the notch / home indicator */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Visible focus for keyboard users, suppressed for pointer users. */
+:focus-visible {
+  outline: 2px solid var(--color-secondary-fg);
+  outline-offset: 2px;
+}
+
+/*
+ * Native date inputs render the picker indicator on the right, which
+ * collides with RTL field layout. Push it to the left edge instead.
+ */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

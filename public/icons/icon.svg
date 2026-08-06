@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Swapp">
+  <rect width="512" height="512" fill="#FAF3E7"/>
+  <rect x="31" y="31" width="450" height="450" rx="102" fill="#EF9F27"/>
+  <g fill="#412402">
+    <path d="M133 178h190v-46l68 66-68 66v-46H133z"/>
+    <path d="M379 288H189v-46l-68 66 68 66v-46h190z"/>
+  </g>
+</svg>

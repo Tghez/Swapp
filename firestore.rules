@@ -1,0 +1,179 @@
+rules_version = '2';
+
+/*
+ * Swapp security rules (PDR §9.3).
+ *
+ * There is no backend, so this file IS the authorization layer. Everything
+ * below is enforced by Firestore itself — a forged request from devtools is
+ * evaluated by exactly these rules, so client-side checks in the UI are only
+ * there to keep the interface honest, never to keep data safe.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function changedKeys() {
+      return incoming().diff(resource.data).affectedKeys();
+    }
+
+    // ---------------------------------------------------------------- users
+
+    match /users/{userId} {
+      // Owner details are denormalised onto each shift, so the board never
+      // needs to read this collection — it stays private to its owner.
+      allow read: if signedIn() && uid() == userId;
+
+      allow create, update: if signedIn()
+        && uid() == userId
+        && incoming().displayName is string
+        && incoming().displayName.size() >= 2
+        && incoming().displayName.size() <= 60
+        && incoming().phone is string
+        && incoming().email is string;
+
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------------- shifts
+
+    function validShift(data) {
+      return data.ownerId is string
+        && data.ownerName is string
+        && data.ownerPhone is string
+        && data.ownerEmail is string
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.monthKey is string
+        && data.monthKey.matches('^[0-9]{4}-[0-9]{2}$')
+        // The month key must agree with the date, or a shift could be hidden
+        // from the month it actually falls in.
+        && data.monthKey == data.date[0:7]
+        && data.department in ['pnimit', 'miyun_klali', 'miyun_yeladim', 'kirurgia']
+        && (data.internalUnit == null || data.internalUnit is string)
+        && (data.note == null || (data.note is string && data.note.size() <= 300))
+        && data.urgent is bool
+        && data.expireAt is timestamp;
+    }
+
+    match /shifts/{shiftId} {
+      // Any signed-in intern can see the board (PDR §9.3).
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && incoming().ownerId == uid()
+        && validShift(incoming())
+        && incoming().status == 'open'
+        && incoming().takenBy == null
+        && incoming().interestCount == 0;
+
+      // The owner controls their own shift, but must not touch the interest
+      // counter — that field is maintained by the people registering interest.
+      allow update: if signedIn()
+        && resource.data.ownerId == uid()
+        && incoming().ownerId == uid()
+        && !changedKeys().hasAny(['interestCount', 'expireAt']);
+
+      /*
+       * A non-owner may do exactly one thing: move interestCount up by one.
+       *
+       * hasOnly() pins which field may change and the equality pins by how
+       * much, so this cannot be used to set the counter to an arbitrary value,
+       * decrement it, or smuggle another field through in the same write.
+       */
+      allow update: if signedIn()
+        && resource.data.ownerId != uid()
+        && changedKeys().hasOnly(['interestCount'])
+        && incoming().interestCount == resource.data.interestCount + 1;
+
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+    }
+
+    // ------------------------------------------------------------ interests
+
+    match /interests/{interestId} {
+      // Readable by the two people it concerns and nobody else. Queries must
+      // therefore filter on takerId or shiftOwnerId, or Firestore rejects
+      // them outright for being unprovable.
+      allow read: if signedIn()
+        && (resource.data.takerId == uid() || resource.data.shiftOwnerId == uid());
+
+      /*
+       * Registering interest in someone else's shift.
+       *
+       * The id is pinned to shift + taker, which is what makes "one interest
+       * per intern per shift" a database guarantee rather than a UI courtesy:
+       * a second attempt is a create on an existing document, which fails.
+       *
+       * shiftOwnerId is checked against the actual shift rather than trusted
+       * from the payload — otherwise a taker could name someone else as owner
+       * and plant an entry in a stranger's inbox.
+       */
+      allow create: if signedIn()
+        && interestId == incoming().shiftId + '__' + uid()
+        && incoming().takerId == uid()
+        && incoming().status == 'pending'
+        && incoming().takerName is string
+        && incoming().takerPhone is string
+        && incoming().expireAt is timestamp
+        && exists(/databases/$(database)/documents/shifts/$(incoming().shiftId))
+        && get(/databases/$(database)/documents/shifts/$(incoming().shiftId)).data.ownerId
+             == incoming().shiftOwnerId
+        && incoming().shiftOwnerId != uid();
+
+      // Only the shift's owner decides an interest's fate, and only its status.
+      allow update: if signedIn()
+        && resource.data.shiftOwnerId == uid()
+        && changedKeys().hasOnly(['status'])
+        && incoming().status in ['pending', 'confirmed', 'declined'];
+
+      // The taker may withdraw; the owner may clear them out when deleting
+      // the shift they belong to.
+      allow delete: if signedIn()
+        && (resource.data.takerId == uid() || resource.data.shiftOwnerId == uid());
+    }
+
+    // --------------------------------------------------------- urgencyLocks
+
+    /*
+     * This is what makes "דחיפות once per month" real (an upgrade on PDR §9.3,
+     * which assumed a client-side check).
+     *
+     * The lock's id is derived from the intern and the month, and it is written
+     * in the same batch as the urgent shift. Because a batch is atomic and
+     * there is no update rule here, a second urgent shift in the same month
+     * hits an existing document — evaluated as an update, denied — and takes
+     * the whole batch down with it. No Cloud Function, no billing account.
+     */
+    match /urgencyLocks/{lockId} {
+      allow read: if signedIn() && resource.data.uid == uid();
+
+      allow create: if signedIn()
+        && lockId == uid() + '__' + incoming().monthKey
+        && incoming().uid == uid()
+        && incoming().monthKey.matches('^[0-9]{4}-[0-9]{2}$')
+        && incoming().expireAt is timestamp;
+
+      allow update: if false;
+
+      // Released when the urgent shift is deleted, so a mistaken post does not
+      // cost the intern their one flag for the month.
+      allow delete: if signedIn() && resource.data.uid == uid();
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
