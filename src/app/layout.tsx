@@ -19,7 +19,7 @@ const rubik = Rubik({
 
 export const metadata: Metadata = {
   title: "Swapp — מסירת תורנויות",
-  description: "מסירה ולקיחה של תורנויות בין מתמחים",
+  description: "מסירה ולקיחה של תורנויות בין סטאז'רים",
   manifest: "/manifest.webmanifest",
   applicationName: "Swapp",
   appleWebApp: {

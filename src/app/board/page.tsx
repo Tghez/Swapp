@@ -88,7 +88,7 @@ function BoardView() {
     await registerInterest({
       shift,
       takerId: user.uid,
-      takerName: takerName || "מתמחה",
+      takerName: takerName || "סטאז'ר",
       takerPhone: profile?.phone ?? "",
     });
   }
@@ -193,7 +193,7 @@ function BoardView() {
         date={selectedDay}
         shifts={selectedDayShifts}
         currentUid={user?.uid ?? ""}
-        takerName={takerName || "מתמחה"}
+        takerName={takerName || "סטאז'ר"}
         interestedShiftIds={interestedShiftIds}
         onRegisterInterest={handleRegisterInterest}
         onClose={() => setSelectedDay(null)}

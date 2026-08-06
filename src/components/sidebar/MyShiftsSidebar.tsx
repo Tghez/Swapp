@@ -156,8 +156,8 @@ function MyShiftCard({
         <div className="mt-3 flex flex-col gap-2 rounded-md bg-surface/80 p-2">
           <p className="text-xs font-bold text-text">
             {pending.length === 1
-              ? "מתמחה אחד סימן עניין"
-              : `${pending.length} מתמחים סימנו עניין`}
+              ? "סטאז'ר אחד סימן עניין"
+              : `${pending.length} סטאז'רים סימנו עניין`}
           </p>
           {pending.map((interest) => (
             <InterestRow

@@ -47,9 +47,14 @@ function Greeting() {
       <h1 className="text-3xl font-bold text-text sm:text-4xl">
         {firstName ? `היי ${firstName}, מה תרצה לעשות היום?` : "מה תרצה לעשות היום?"}
       </h1>
+      {/*
+        Held as a string expression rather than raw JSX text: the apostrophe in
+        סטאז'רים is an unescaped entity in JSX, which lint rejects. Escaping it
+        as &apos; would make the Hebrew unreadable in source.
+      */}
       <p className="mt-4 max-w-md text-base leading-relaxed text-muted">
-        Swapp הוא המקום שבו מתמחים מוסרים ולוקחים תורנויות. מפרסמים תורנות
-        שצריך למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ.
+        {"Swapp הוא המקום שבו סטאז'רים באיכילוב מוסרים ולוקחים תורנויות. " +
+          "מפרסמים תורנות שצריך למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ."}
       </p>
 
       <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:justify-center">

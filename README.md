@@ -1,10 +1,10 @@
 # Swapp
 
-מסירה ולקיחה של תורנויות בין מתמחים.
+מסירה ולקיחה של תורנויות בין סטאז'רים.
 
-An intern posts a תורנות they need to hand off; other interns browse a month
-calendar of what is available, register interest, and the two settle it over
-WhatsApp. Hebrew, RTL, mobile-first, installable to a home screen.
+A סטאז'ר posts a תורנות they need to hand off; others browse a month calendar of
+what is available, register interest, and the two settle it over WhatsApp.
+Hebrew, RTL, mobile-first, installable to a home screen.
 
 ## Stack
 

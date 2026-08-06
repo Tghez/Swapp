@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Swapp — מסירת תורנויות",
     short_name: "Swapp",
-    description: "מסירה ולקיחה של תורנויות בין מתמחים",
+    description: "מסירה ולקיחה של תורנויות בין סטאז'רים",
     lang: "he",
     dir: "rtl",
     start_url: "/",

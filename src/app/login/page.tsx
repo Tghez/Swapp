@@ -47,9 +47,10 @@ export default function LoginPage() {
           className="mx-auto mb-5 size-20 rounded-2xl"
         />
         <h1 className="text-2xl font-bold text-text">Swapp</h1>
+        {/* String expression, not raw JSX text — see the note on the landing page. */}
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          המקום שבו מתמחים מוסרים ולוקחים תורנויות. מפרסמים תורנות שצריך למסור,
-          או מוצאים אחת לקחת — ומתחברים ישירות בוואטסאפ.
+          {"המקום שבו סטאז'רים מוסרים ולוקחים תורנויות. מפרסמים תורנות שצריך " +
+            "למסור, או מוצאים אחת לקחת — ומתחברים ישירות בוואטסאפ."}
         </p>
 
         {configError ? (
