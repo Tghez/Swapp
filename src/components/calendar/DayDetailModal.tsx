@@ -19,7 +19,6 @@ interface DayDetailModalProps {
   date: Date | null;
   shifts: readonly Shift[];
   currentUid: string;
-  takerName: string;
   interestedShiftIds: ReadonlySet<string>;
   onRegisterInterest: (shift: Shift) => Promise<void>;
   onClose: () => void;
@@ -33,7 +32,6 @@ export function DayDetailModal({
   date,
   shifts,
   currentUid,
-  takerName,
   interestedShiftIds,
   onRegisterInterest,
   onClose,
@@ -61,7 +59,6 @@ export function DayDetailModal({
               key={shift.id}
               shift={shift}
               isOwn={shift.ownerId === currentUid}
-              takerName={takerName}
               alreadyInterested={interestedShiftIds.has(shift.id)}
               dateLabel={date ? formatFullDate(date) : ""}
               onRegisterInterest={async () => {
@@ -87,7 +84,6 @@ export function DayDetailModal({
 interface ShiftDetailProps {
   shift: Shift;
   isOwn: boolean;
-  takerName: string;
   alreadyInterested: boolean;
   dateLabel: string;
   onRegisterInterest: () => void;
@@ -96,7 +92,6 @@ interface ShiftDetailProps {
 function ShiftDetail({
   shift,
   isOwn,
-  takerName,
   alreadyInterested,
   dateLabel,
   onRegisterInterest,
@@ -109,7 +104,6 @@ function ShiftDetail({
     shift.ownerPhone,
     buildWhatsAppMessage({
       ownerName: shift.ownerName,
-      takerName,
       location,
       dateLabel,
     }),

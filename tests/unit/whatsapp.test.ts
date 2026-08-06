@@ -78,14 +78,13 @@ describe("buildWhatsAppUrl", () => {
 describe("buildWhatsAppMessage", () => {
   const context = {
     ownerName: "טל כהן",
-    takerName: "נועה לוי",
     location: "פנימית ג׳",
     dateLabel: "יום ג׳, 12 באוגוסט",
   };
 
   it("greets the owner by first name only", () => {
     const message = buildWhatsAppMessage(context);
-    expect(message).toContain("היי טל,");
+    expect(message).toContain("היי טל ");
     expect(message).not.toContain("היי טל כהן");
   });
 
@@ -93,12 +92,12 @@ describe("buildWhatsAppMessage", () => {
     const message = buildWhatsAppMessage(context);
     expect(message).toContain("פנימית ג׳");
     expect(message).toContain("יום ג׳, 12 באוגוסט");
-    expect(message).toContain("נועה לוי");
+    expect(message).toContain("האם רלוונטי?");
   });
 
   it("copes with a single-word name", () => {
     expect(buildWhatsAppMessage({ ...context, ownerName: "טל" })).toContain(
-      "היי טל,",
+      "היי טל ",
     );
   });
 });

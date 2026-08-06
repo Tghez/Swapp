@@ -52,7 +52,6 @@ export function formatPhoneForDisplay(raw: string): string {
 
 export interface WhatsAppMessageContext {
   ownerName: string;
-  takerName: string;
   location: string;
   dateLabel: string;
 }
@@ -60,14 +59,13 @@ export interface WhatsAppMessageContext {
 /** The message pre-filled into the conversation. Kept short and specific. */
 export function buildWhatsAppMessage({
   ownerName,
-  takerName,
   location,
   dateLabel,
 }: WhatsAppMessageContext): string {
   const owner = ownerName.trim().split(/\s+/)[0] || ownerName.trim();
   return (
-    `היי ${owner}, ראיתי ב-Swapp שאתם מחפשים מישהו לתורנות ` +
-    `ב${location} בתאריך ${dateLabel}. אני ${takerName.trim()} ומעוניין/ת לקחת אותה.`
+    `היי ${owner} ראיתי שאת/ה מוסר תורנות ב${location} ב${dateLabel}. ` +
+    `אני מעוניינ/ת, האם רלוונטי?`
   );
 }
 

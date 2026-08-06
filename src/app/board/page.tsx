@@ -193,7 +193,6 @@ function BoardView() {
         date={selectedDay}
         shifts={selectedDayShifts}
         currentUid={user?.uid ?? ""}
-        takerName={takerName || "סטאז'ר"}
         interestedShiftIds={interestedShiftIds}
         onRegisterInterest={handleRegisterInterest}
         onClose={() => setSelectedDay(null)}
