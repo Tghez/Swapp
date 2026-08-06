@@ -55,7 +55,13 @@ interface TextFieldProps
   hint?: ReactNode;
 }
 
-export function TextField({ label, error, hint, ...props }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  hint,
+  className,
+  ...props
+}: TextFieldProps) {
   return (
     <FieldShell label={label} error={error} hint={hint}>
       {(id, describedBy) => (
@@ -63,7 +69,11 @@ export function TextField({ label, error, hint, ...props }: TextFieldProps) {
           id={id}
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
-          className={cn(CONTROL, error ? "border-urgent" : "border-border")}
+          className={cn(
+            CONTROL,
+            error ? "border-urgent" : "border-border",
+            className,
+          )}
           {...props}
         />
       )}
