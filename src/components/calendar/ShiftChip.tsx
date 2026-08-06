@@ -57,14 +57,6 @@ export function Legend() {
           {department.label}
         </li>
       ))}
-      <li className="flex items-center gap-1.5 text-xs text-muted">
-        <span className="size-2.5 rounded-full bg-urgent" />
-        דחוף
-      </li>
-      <li className="flex items-center gap-1.5 text-xs text-muted">
-        <span className="size-2.5 rounded-full bg-secondary" />
-        גם להחלפה
-      </li>
     </ul>
   );
 }
