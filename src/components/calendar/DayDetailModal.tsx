@@ -6,7 +6,13 @@ import { Button, ExternalButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Card";
 import { ErrorBanner, SwapBadge, UrgentBadge } from "@/components/ui/Feedback";
 import { formatFullDate } from "@/lib/date/calendar";
-import { formatLocation, getDepartment } from "@/lib/domain/departments";
+import {
+  DEPARTMENTS,
+  formatLocation,
+  getDepartment,
+  type Department,
+  type DepartmentId,
+} from "@/lib/domain/departments";
 import {
   buildWhatsAppMessage,
   buildWhatsAppUrl,
@@ -37,13 +43,40 @@ export function DayDetailModal({
   onClose,
 }: DayDetailModalProps) {
   const [error, setError] = useState<string | null>(null);
+  const dateLabel = date ? formatFullDate(date) : "";
+
+  async function handleRegisterInterest(shift: Shift) {
+    setError(null);
+    try {
+      await onRegisterInterest(shift);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "לא הצלחנו לסמן עניין. יש לנסות שוב.",
+      );
+    }
+  }
+
+  function renderShift(shift: Shift) {
+    return (
+      <ShiftDetail
+        key={shift.id}
+        shift={shift}
+        isOwn={shift.ownerId === currentUid}
+        alreadyInterested={interestedShiftIds.has(shift.id)}
+        dateLabel={dateLabel}
+        onRegisterInterest={() => handleRegisterInterest(shift)}
+      />
+    );
+  }
+
+  // Grouping only earns its keep once there is something to disambiguate —
+  // a single shift just renders flat, same as before.
+  const groups = shifts.length > 1 ? groupByDepartment(shifts) : null;
 
   return (
-    <Modal
-      open={date !== null}
-      title={date ? formatFullDate(date) : ""}
-      onClose={onClose}
-    >
+    <Modal open={date !== null} title={dateLabel} onClose={onClose}>
       {error && (
         <div className="mb-4">
           <ErrorBanner>{error}</ErrorBanner>
@@ -52,32 +85,54 @@ export function DayDetailModal({
 
       {shifts.length === 0 ? (
         <EmptyState>אין תורנויות ביום הזה</EmptyState>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {shifts.map((shift) => (
-            <ShiftDetail
-              key={shift.id}
-              shift={shift}
-              isOwn={shift.ownerId === currentUid}
-              alreadyInterested={interestedShiftIds.has(shift.id)}
-              dateLabel={date ? formatFullDate(date) : ""}
-              onRegisterInterest={async () => {
-                setError(null);
-                try {
-                  await onRegisterInterest(shift);
-                } catch (caught) {
-                  setError(
-                    caught instanceof Error
-                      ? caught.message
-                      : "לא הצלחנו לסמן עניין. יש לנסות שוב.",
-                  );
-                }
-              }}
-            />
+      ) : groups ? (
+        <div className="flex flex-col gap-3">
+          {groups.map(({ department, shifts: groupShifts }) => (
+            <details
+              key={department.id}
+              open
+              className="group overflow-hidden rounded-card border border-border"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2 font-bold text-text">
+                  <span
+                    className={cn("size-2.5 shrink-0 rounded-full", department.dotClass)}
+                  />
+                  {department.label}
+                  <span className="text-xs font-normal text-muted">
+                    ({groupShifts.length})
+                  </span>
+                </span>
+                <ChevronIcon className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" />
+              </summary>
+              <ul className="flex flex-col gap-3 border-t border-border p-3">
+                {groupShifts.map(renderShift)}
+              </ul>
+            </details>
           ))}
-        </ul>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-3">{shifts.map(renderShift)}</ul>
       )}
     </Modal>
+  );
+}
+
+interface DepartmentGroup {
+  department: Department;
+  shifts: Shift[];
+}
+
+/** Fixed department order (same as the legend), not the order shifts arrive in. */
+function groupByDepartment(shifts: readonly Shift[]): DepartmentGroup[] {
+  const byId = new Map<DepartmentId, Shift[]>();
+  for (const shift of shifts) {
+    const list = byId.get(shift.department);
+    if (list) list.push(shift);
+    else byId.set(shift.department, [shift]);
+  }
+  return DEPARTMENTS.filter((department) => byId.has(department.id)).map(
+    (department) => ({ department, shifts: byId.get(department.id)! }),
   );
 }
 
@@ -194,6 +249,23 @@ function ShiftDetail({
         )}
       </div>
     </li>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 
