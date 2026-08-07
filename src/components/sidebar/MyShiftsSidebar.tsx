@@ -234,7 +234,7 @@ function MyShiftCard({
             <>
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
                 disabled={busy}
                 onClick={() =>
                   run(() => markShiftHandedOff(shift), "הפעולה נכשלה")

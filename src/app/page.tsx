@@ -64,7 +64,7 @@ function Greeting() {
         <ButtonLink
           href="/board"
           size="lg"
-          variant="secondary"
+          variant="secondaryFilled"
           className="flex-1"
         >
           לקחת תורנות

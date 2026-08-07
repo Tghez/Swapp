@@ -2,7 +2,12 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "secondaryFilled"
+  | "ghost"
+  | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
@@ -16,6 +21,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
   // Outline eucalyptus, so it never competes with the primary action.
   secondary:
     "border-2 border-secondary text-secondary-fg bg-surface hover:bg-secondary/10",
+  // Filled eucalyptus — for the rare spot where "take a shift" needs the same
+  // visual weight as the primary "hand one off" action, not a quieter outline.
+  secondaryFilled: "bg-secondary text-secondary-fg hover:bg-secondary-hover shadow-sm",
   ghost: "text-muted hover:text-text hover:bg-border/40",
   // Urgency red is reserved for destructive intent and the דחיפות flag; it is
   // never used as an ordinary button colour.
