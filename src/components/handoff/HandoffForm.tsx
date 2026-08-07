@@ -112,13 +112,22 @@ export function HandoffForm() {
    * just because the shift behind it was later deleted, so these can
    * under-count after a cancel. That is fine: the goal here is to keep the
    * interface honest, not to be the source of truth.
+   *
+   * Suppressed while `submitting`: the moment a post succeeds, the realtime
+   * `myShifts` subscription picks up the shift just created — before
+   * `router.push` has navigated away — which would otherwise flash this
+   * error for the shift the intern is in the middle of successfully posting.
+   * `submitting` only clears on failure, so a genuine conflict still shows
+   * before the next attempt.
    */
-  const dailyLimitReached = values.date
-    ? myShifts.some((s) => s.date === values.date)
-    : false;
-  const monthlyLimitReached = targetMonthKey
-    ? myShifts.filter((s) => s.monthKey === targetMonthKey).length >= 4
-    : false;
+  const dailyLimitReached =
+    !submitting && values.date
+      ? myShifts.some((s) => s.date === values.date)
+      : false;
+  const monthlyLimitReached =
+    !submitting && targetMonthKey
+      ? myShifts.filter((s) => s.monthKey === targetMonthKey).length >= 4
+      : false;
 
   // Derived, not corrected after the fact: ticking the box and then moving to
   // a date whose month is already spent must not submit an urgent flag the
