@@ -48,7 +48,7 @@ function BoardView() {
   const [monthKey, setMonthKey] = useState(months[0]);
   const [department, setDepartment] = useState("");
   const [unit, setUnit] = useState("");
-  const [showHandedOff, setShowHandedOff] = useState(false);
+  const [hideHandedOff, setHideHandedOff] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const { data: shifts, loading, error } = useMonthShifts(monthKey);
@@ -66,14 +66,8 @@ function BoardView() {
    */
   const visibleShifts = useMemo(() => {
     return shifts.filter((shift) => {
-      // Someone else's handed-off shift is stale noise while browsing for
-      // one to take, so it stays behind the checkbox. Your own stays visible
-      // regardless — that's the calendar record of "I handed this off".
-      if (
-        !showHandedOff &&
-        shift.status === "handedOff" &&
-        shift.ownerId !== user?.uid
-      ) {
+      // Handed-off shifts show by default; the checkbox hides all of them.
+      if (hideHandedOff && shift.status === "handedOff") {
         return false;
       }
       if (department && shift.department !== department) return false;
@@ -82,7 +76,7 @@ function BoardView() {
       }
       return true;
     });
-  }, [shifts, department, unit, showHandedOff, user?.uid]);
+  }, [shifts, department, unit, hideHandedOff]);
 
   const selectedDayShifts = useMemo(() => {
     if (!selectedDay) return [];
@@ -167,11 +161,11 @@ function BoardView() {
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
           <input
             type="checkbox"
-            checked={showHandedOff}
-            onChange={(event) => setShowHandedOff(event.target.checked)}
+            checked={hideHandedOff}
+            onChange={(event) => setHideHandedOff(event.target.checked)}
             className="size-4 accent-[var(--color-secondary)]"
           />
-          הצגת תורנויות שכבר נמסרו
+          הסתר תורניות שנמסרו
         </label>
 
         <Legend />
