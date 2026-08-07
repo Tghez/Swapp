@@ -44,7 +44,7 @@ function Greeting() {
 
   return (
     <section className="flex flex-col items-center justify-center py-6 text-center lg:py-16">
-      <h1 className="text-3xl font-bold text-text sm:text-4xl">
+      <h1 className="text-3xl font-normal text-text sm:text-4xl">
         {firstName ? `היי ${firstName}, מה תרצה לעשות היום?` : "מה תרצה לעשות היום?"}
       </h1>
       {/*

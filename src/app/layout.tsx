@@ -1,19 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Rubik } from "next/font/google";
+import { Fredoka } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
 /**
  * The PDR asks for Nunito, but Nunito ships no Hebrew glyphs — every string in
- * this app would silently fall back to a system font. Rubik is the closest
- * Hebrew-capable match: same geometric, softly rounded character, and it
- * covers Latin too so headings stay consistent.
+ * this app would silently fall back to a system font. Fredoka is a rounder
+ * Hebrew-capable match. Its 700 weight is not loaded on purpose — Fredoka's
+ * bold gets blobby at that weight, so `font-bold` (700) is left to fall back
+ * to the closest lighter loaded face (600) per the CSS font-matching spec,
+ * rather than rendering the true bold.
  */
-const rubik = Rubik({
-  variable: "--font-rubik",
+const fredoka = Fredoka({
+  variable: "--font-fredoka",
   subsets: ["hebrew", "latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
@@ -49,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="he"
       dir="rtl"
-      className={`${rubik.variable} h-full antialiased`}
+      className={`${fredoka.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-bg text-text">
