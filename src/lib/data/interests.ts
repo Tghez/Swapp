@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  FirestoreError,
   getDoc,
   onSnapshot,
   orderBy,
@@ -97,8 +98,17 @@ export class AlreadyInterestedError extends Error {
  *
  * Run as a transaction rather than a plain write because `interestCount` is
  * denormalised onto the shift, and the security rule requires a non-owner to
- * move it by exactly one. Reading and writing in the same transaction keeps
- * that true under concurrent registrations instead of losing an update.
+ * move it by exactly one.
+ *
+ * Deliberately does NOT `transaction.get(interestRef)` to check for an
+ * existing interest first: the interests `read` rule can't grant that,
+ * because a not-yet-created document reads as `resource == null`, and
+ * `resource.data.takerId` on that is a rules-evaluation error — i.e. denied,
+ * every single time, for every first-ever registration. The composite id is
+ * already the enforcement mechanism (CLAUDE §invariant 1): a duplicate
+ * `set()` lands on an existing doc, which Firestore evaluates as an
+ * `update`, which only the shift owner may do — so it comes back
+ * permission-denied, caught below and turned into AlreadyInterestedError.
  */
 export async function registerInterest({
   shift,
@@ -114,36 +124,37 @@ export async function registerInterest({
     interestId(shift.id, takerId),
   );
 
-  await runTransaction(db, async (transaction) => {
-    const [shiftSnap, interestSnap] = await Promise.all([
-      transaction.get(shiftRef),
-      transaction.get(interestRef),
-    ]);
+  try {
+    await runTransaction(db, async (transaction) => {
+      const shiftSnap = await transaction.get(shiftRef);
 
-    if (!shiftSnap.exists()) {
-      throw new Error("התורנות כבר לא זמינה");
-    }
-    if (interestSnap.exists()) {
+      if (!shiftSnap.exists()) {
+        throw new Error("התורנות כבר לא זמינה");
+      }
+
+      const current = shiftSnap.data();
+      const currentCount =
+        typeof current.interestCount === "number" ? current.interestCount : 0;
+
+      transaction.set(interestRef, {
+        shiftId: shift.id,
+        shiftOwnerId: shift.ownerId,
+        takerId,
+        takerName,
+        takerPhone,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        expireAt: Timestamp.fromDate(expireAtForMonthKey(shift.monthKey)),
+      });
+
+      transaction.update(shiftRef, { interestCount: currentCount + 1 });
+    });
+  } catch (error) {
+    if (error instanceof FirestoreError && error.code === "permission-denied") {
       throw new AlreadyInterestedError();
     }
-
-    const current = shiftSnap.data();
-    const currentCount =
-      typeof current.interestCount === "number" ? current.interestCount : 0;
-
-    transaction.set(interestRef, {
-      shiftId: shift.id,
-      shiftOwnerId: shift.ownerId,
-      takerId,
-      takerName,
-      takerPhone,
-      status: "pending",
-      createdAt: serverTimestamp(),
-      expireAt: Timestamp.fromDate(expireAtForMonthKey(shift.monthKey)),
-    });
-
-    transaction.update(shiftRef, { interestCount: currentCount + 1 });
-  });
+    throw error;
+  }
 }
 
 /** Owner rejects a single applicant without handing the shift to anyone. */
