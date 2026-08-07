@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDocs,
+  increment,
   onSnapshot,
   orderBy,
   query,
@@ -14,7 +15,7 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
-import { COLLECTIONS, urgencyLockId } from "./collections";
+import { COLLECTIONS, dailyLockId, handoffCountId, urgencyLockId } from "./collections";
 import { buildProfilePayload } from "./users";
 import { toShiftFromSnapshot } from "./shiftMapper";
 import {
@@ -85,16 +86,18 @@ export function subscribeToMyShifts(
 /**
  * Posts a shift.
  *
- * Written as one batch so the three effects land together or not at all: the
+ * Written as one batch so all of its effects land together or not at all: the
  * shift itself, the profile upsert that makes the form self-filling next time,
- * and — when דחיפות is ticked — the once-per-month lock.
+ * the one-shift-per-date lock, the four-a-month handoff counter, and — when
+ * דחיפות is ticked — the once-per-month urgency lock.
  *
- * The lock is what makes that limit real rather than advisory. Its id is
- * derived from uid + month, and `set()` on a document that already exists is
- * evaluated as an *update* by security rules, which the rules do not permit for
- * this collection. A second urgent shift in the same month therefore fails at
- * the server, and because a batch is atomic, the shift is rejected with it —
- * all without a Cloud Function.
+ * The date lock works exactly like the urgency lock: its id is derived from
+ * uid + the shift's own date (not the day it is posted), so a second shift
+ * dated the same day is a `create` on a document that already exists, which
+ * the rules do not permit. The monthly counter instead increments a `count`
+ * field the rules cap at 4 — deliberately not released when a shift is
+ * deleted, so posting and cancelling repeatedly cannot be used to dodge
+ * either cap.
  */
 export async function createShift(
   uid: string,
@@ -133,6 +136,26 @@ export async function createShift(
       phone: input.phone,
       email: input.email,
     }),
+    { merge: true },
+  );
+
+  batch.set(doc(db, COLLECTIONS.dailyLocks, dailyLockId(uid, input.date)), {
+    uid,
+    date: input.date,
+    monthKey,
+    shiftId: shiftRef.id,
+    createdAt: serverTimestamp(),
+    expireAt,
+  });
+
+  batch.set(
+    doc(db, COLLECTIONS.handoffCounts, handoffCountId(uid, monthKey)),
+    {
+      uid,
+      monthKey,
+      count: increment(1),
+      expireAt,
+    },
     { merge: true },
   );
 

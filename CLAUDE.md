@@ -32,7 +32,7 @@ npm test               # 60 unit tests, pure logic, no emulator
 npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm run emulators      # pinned to firebase-tools@13 — see note below
-npm run test:rules     # 41 rules tests, needs emulators running first
+npm run test:rules     # 55 rules tests, needs emulators running first
 npm run deploy:rules   # push firestore.rules + indexes
 ```
 
@@ -67,6 +67,8 @@ shifts/{auto}                   ownerId + denormalised owner contact, date,
 interests/{shiftId}__{takerId}  shiftId, shiftOwnerId, takerId, takerName,
                                 takerPhone, status, expireAt
 urgencyLocks/{uid}__{YYYY-MM}   uid, monthKey, shiftId, expireAt
+dailyLocks/{uid}__{date}        uid, date, monthKey, shiftId, expireAt
+handoffCounts/{uid}__{YYYY-MM}  uid, monthKey, count (capped at 4), expireAt
 ```
 
 Two deliberate choices worth not "fixing":
@@ -95,6 +97,17 @@ Two deliberate choices worth not "fixing":
    pin both which field changes (`hasOnly`) and by how much. `registerInterest`
    uses a transaction so this holds under concurrency. Do not switch to
    `increment()` without re-verifying the rule still passes.
+
+3a. **An intern may hold at most one shift per date and 4 a month.** The daily
+   limit is per **shift date**, not per day of posting — an intern can post
+   several shifts in one sitting as long as no two land on the same date.
+   `createShift` writes `dailyLocks/{uid}__{date}` (create-only, same trick as
+   urgencyLocks, keyed on the shift's own date) and increments
+   `handoffCounts/{uid}__{monthKey}.count` (rules cap it at 4 and pin the step
+   to exactly +1) in the same batch as the shift. Unlike urgencyLocks,
+   **neither is released when the shift is deleted** — this was a deliberate
+   choice so post-then-cancel can't be used to dodge the cap. Don't add a
+   delete/decrement path without re-checking that trade-off.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.

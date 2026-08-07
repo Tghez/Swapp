@@ -397,6 +397,137 @@ describe("the once-per-month דחיפות limit", () => {
   });
 });
 
+describe("the one-shift-per-date limit", () => {
+  const lockId = `${BOB}__2026-08-25`;
+
+  function dailyLockDoc(overrides: Record<string, unknown> = {}) {
+    return {
+      uid: BOB,
+      date: "2026-08-25",
+      monthKey: "2026-08",
+      shiftId: "shift-a",
+      createdAt: serverTimestamp(),
+      expireAt: EXPIRE_AT,
+      ...overrides,
+    };
+  }
+
+  it("allows the first shift dated this day", async () => {
+    await assertSucceeds(
+      setDoc(doc(db(BOB), "dailyLocks", lockId), dailyLockDoc()),
+    );
+  });
+
+  it("rejects a second shift dated the same day, at the server", async () => {
+    const bob = db(BOB);
+    await setDoc(doc(bob, "dailyLocks", lockId), dailyLockDoc());
+
+    // The lock already exists, so this is an update, which is denied.
+    await assertFails(
+      setDoc(doc(bob, "dailyLocks", lockId), dailyLockDoc({ shiftId: "shift-b" })),
+    );
+  });
+
+  it("still allows a shift dated a different day", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(db(BOB), "dailyLocks", `${BOB}__2026-08-26`),
+        dailyLockDoc({ date: "2026-08-26" }),
+      ),
+    );
+  });
+
+  it("refuses a lock whose id does not match its owner", async () => {
+    await assertFails(
+      setDoc(doc(db(BOB), "dailyLocks", `${ALICE}__2026-08-25`), dailyLockDoc()),
+    );
+  });
+
+  it("refuses a lock claiming to belong to someone else", async () => {
+    await assertFails(
+      setDoc(doc(db(BOB), "dailyLocks", lockId), dailyLockDoc({ uid: ALICE })),
+    );
+  });
+
+  it("does not refund the day when the shift is deleted", async () => {
+    await setDoc(doc(db(BOB), "dailyLocks", lockId), dailyLockDoc());
+    await assertFails(deleteDoc(doc(db(BOB), "dailyLocks", lockId)));
+  });
+});
+
+describe("the four-a-month posting limit", () => {
+  const lockId = `${BOB}__2026-08`;
+
+  function countDoc(count: number, overrides: Record<string, unknown> = {}) {
+    return {
+      uid: BOB,
+      monthKey: "2026-08",
+      count,
+      expireAt: EXPIRE_AT,
+      ...overrides,
+    };
+  }
+
+  // The create rule only allows a counter to start at 1, so a seed above
+  // that has to bypass rules — the same way the interest-counter tests seed
+  // a starting count.
+  async function seedCount(count: number) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const raw = context.firestore() as unknown as Firestore;
+      await setDoc(doc(raw, "handoffCounts", lockId), countDoc(count));
+    });
+  }
+
+  it("allows the first shift of the month to create the counter at 1", async () => {
+    await assertSucceeds(
+      setDoc(doc(db(BOB), "handoffCounts", lockId), countDoc(1)),
+    );
+  });
+
+  it("refuses the counter starting anywhere but 1", async () => {
+    await assertFails(
+      setDoc(doc(db(BOB), "handoffCounts", lockId), countDoc(2)),
+    );
+  });
+
+  it("allows incrementing by exactly one, up to four", async () => {
+    const bob = db(BOB);
+    await setDoc(doc(bob, "handoffCounts", lockId), countDoc(1));
+    await assertSucceeds(updateDoc(doc(bob, "handoffCounts", lockId), { count: 2 }));
+    await assertSucceeds(updateDoc(doc(bob, "handoffCounts", lockId), { count: 3 }));
+    await assertSucceeds(updateDoc(doc(bob, "handoffCounts", lockId), { count: 4 }));
+  });
+
+  it("rejects a fifth shift, at the server", async () => {
+    await seedCount(4);
+    const bob = db(BOB);
+    await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: 5 }));
+  });
+
+  it("refuses a jump of more than one", async () => {
+    const bob = db(BOB);
+    await setDoc(doc(bob, "handoffCounts", lockId), countDoc(1));
+    await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: 3 }));
+  });
+
+  it("refuses a decrement", async () => {
+    await seedCount(2);
+    const bob = db(BOB);
+    await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: 1 }));
+  });
+
+  it("refuses a counter claiming to belong to someone else", async () => {
+    await assertFails(
+      setDoc(doc(db(BOB), "handoffCounts", lockId), countDoc(1, { uid: ALICE })),
+    );
+  });
+
+  it("does not refund a slot when a shift is deleted", async () => {
+    await seedCount(4);
+    await assertFails(deleteDoc(doc(db(BOB), "handoffCounts", lockId)));
+  });
+});
+
 describe("profiles", () => {
   it("lets an intern write their own profile", async () => {
     await assertSucceeds(

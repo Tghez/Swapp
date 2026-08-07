@@ -172,6 +172,62 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == uid();
     }
 
+    // ---------------------------------------------------------- dailyLocks
+
+    /*
+     * "At most one shift per intern per date."
+     *
+     * Same mechanism as urgencyLocks: the id is derived from uid + the
+     * shift's own date (not the day it is posted) and written in the same
+     * batch as the shift, so a second shift dated the same day is a create
+     * on an existing document and fails, taking the batch with it. Unlike
+     * urgencyLocks there is no delete rule — deleting the shift does not
+     * free the date back up, or posting-then-cancelling could be used to
+     * dodge the limit.
+     */
+    match /dailyLocks/{lockId} {
+      allow read: if signedIn() && resource.data.uid == uid();
+
+      allow create: if signedIn()
+        && lockId == uid() + '__' + incoming().date
+        && incoming().uid == uid()
+        && incoming().date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && incoming().expireAt is timestamp;
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------- handoffCounts
+
+    /*
+     * "At most four shifts posted per intern per month."
+     *
+     * The id is derived from uid + month, and `count` only ever moves up by
+     * exactly one and is capped at 4 — both pinned so a forged request can
+     * neither jump the counter nor claw it back down. There is no delete
+     * rule and no path that decrements it, so — like dailyLocks — deleting a
+     * posted shift does not refund the slot.
+     */
+    match /handoffCounts/{lockId} {
+      allow read: if signedIn() && resource.data.uid == uid();
+
+      allow create: if signedIn()
+        && lockId == uid() + '__' + incoming().monthKey
+        && incoming().uid == uid()
+        && incoming().monthKey.matches('^[0-9]{4}-[0-9]{2}$')
+        && incoming().count == 1
+        && incoming().expireAt is timestamp;
+
+      allow update: if signedIn()
+        && resource.data.uid == uid()
+        && changedKeys().hasOnly(['count'])
+        && incoming().count == resource.data.count + 1
+        && incoming().count <= 4;
+
+      allow delete: if false;
+    }
+
     // Anything not matched above is denied.
     match /{document=**} {
       allow read, write: if false;

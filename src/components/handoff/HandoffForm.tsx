@@ -105,6 +105,21 @@ export function HandoffForm() {
     ? myShifts.some((s) => s.urgent && s.monthKey === targetMonthKey)
     : false;
 
+  /**
+   * At most one shift per date and four a month, mirrored client-side from
+   * `myShifts` for an honest hint — the server (via dailyLocks and
+   * handoffCounts) is what actually enforces it, and does not forget a slot
+   * just because the shift behind it was later deleted, so these can
+   * under-count after a cancel. That is fine: the goal here is to keep the
+   * interface honest, not to be the source of truth.
+   */
+  const dailyLimitReached = values.date
+    ? myShifts.some((s) => s.date === values.date)
+    : false;
+  const monthlyLimitReached = targetMonthKey
+    ? myShifts.filter((s) => s.monthKey === targetMonthKey).length >= 4
+    : false;
+
   // Derived, not corrected after the fact: ticking the box and then moving to
   // a date whose month is already spent must not submit an urgent flag the
   // server would reject.
@@ -138,6 +153,16 @@ export function HandoffForm() {
     if (!user) return;
 
     setSubmitError(null);
+
+    if (dailyLimitReached) {
+      setErrors({ date: "כבר פרסמת תורנות בתאריך הזה" });
+      return;
+    }
+    if (monthlyLimitReached) {
+      setErrors({ date: "פרסמת כבר 4 תורנויות החודש — זו המכסה" });
+      return;
+    }
+
     const parsed = schema.safeParse({
       displayName: values.displayName,
       phone: values.phone,
@@ -166,11 +191,14 @@ export function HandoffForm() {
       await createShift(user.uid, parsed.data);
       router.push("/?posted=1");
     } catch (caught) {
-      // The most likely failure is the urgency lock rejecting a second urgent
-      // shift for the month — the server enforces that, so say so plainly.
+      // A denied write here means one of the server-enforced limits kicked
+      // in: the urgency lock, the daily lock, or the monthly handoff cap.
+      // The client-side hints above cover the common cases, so this is the
+      // fallback for whatever they missed (e.g. a shift deleted and quota
+      // still spent, or state that changed in another tab).
       const message =
         caught instanceof Error && caught.message.includes("permission")
-          ? "לא ניתן לפרסם. ייתכן שכבר סימנת דחיפות לחודש הזה."
+          ? "לא ניתן לפרסם. ייתכן שהגעת למכסה החודשית, כבר פרסמת תורנות היום, או שכבר סימנת דחיפות לחודש הזה."
           : "הפרסום נכשל. יש לנסות שוב.";
       setSubmitError(message);
       setSubmitting(false);
@@ -218,14 +246,23 @@ export function HandoffForm() {
           label="תאריך התורנות"
           value={values.date}
           onChange={(e) => update("date", e.target.value)}
-          error={errors.date}
+          error={
+            errors.date ||
+            (dailyLimitReached
+              ? "כבר פרסמת תורנות בתאריך הזה"
+              : monthlyLimitReached
+                ? "פרסמת כבר 4 תורנויות החודש — זו המכסה"
+                : undefined)
+          }
           type="date"
           min={dateKeyOf(range.min)}
           max={dateKeyOf(range.max)}
           hint={
-            now.getDate() >= 15
-              ? "ניתן לפרסם תורנויות עד סוף החודש הבא"
-              : "ניתן לפרסם תורנויות עד סוף החודש. מה-15 ייפתח גם החודש הבא"
+            dailyLimitReached || monthlyLimitReached
+              ? undefined
+              : now.getDate() >= 15
+                ? "ניתן לפרסם תורנויות עד סוף החודש הבא"
+                : "ניתן לפרסם תורנויות עד סוף החודש. מה-15 ייפתח גם החודש הבא"
           }
         />
 
@@ -304,7 +341,11 @@ export function HandoffForm() {
 
       {submitError && <ErrorBanner>{submitError}</ErrorBanner>}
 
-      <Button type="submit" size="lg" disabled={submitting}>
+      <Button
+        type="submit"
+        size="lg"
+        disabled={submitting || dailyLimitReached || monthlyLimitReached}
+      >
         {submitting && (
           <Spinner className="size-5 border-primary-fg/30 border-t-primary-fg" />
         )}

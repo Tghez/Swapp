@@ -8,6 +8,8 @@ export const COLLECTIONS = {
   shifts: "shifts",
   interests: "interests",
   urgencyLocks: "urgencyLocks",
+  dailyLocks: "dailyLocks",
+  handoffCounts: "handoffCounts",
 } as const;
 
 /**
@@ -23,5 +25,15 @@ export function interestId(shiftId: string, takerId: string): string {
 
 /** One דחיפות flag per intern per month (PDR §6.2). */
 export function urgencyLockId(uid: string, monthKey: string): string {
+  return `${uid}__${monthKey}`;
+}
+
+/** At most one shift per intern per date — keyed by the shift's own date, not the day it's posted. */
+export function dailyLockId(uid: string, date: string): string {
+  return `${uid}__${date}`;
+}
+
+/** Running total of shifts posted per intern per month, capped at 4. */
+export function handoffCountId(uid: string, monthKey: string): string {
   return `${uid}__${monthKey}`;
 }
