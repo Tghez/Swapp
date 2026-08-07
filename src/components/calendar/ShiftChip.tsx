@@ -22,7 +22,6 @@ export function ShiftChip({ shift }: { shift: Shift }) {
       className={cn(
         "flex w-full items-center gap-1 overflow-hidden rounded-md border-s-4 px-1.5 py-0.5 text-start text-[11px] font-medium leading-tight text-text",
         department.chipClass,
-        handedOff && "opacity-45 line-through",
       )}
     >
       {shift.urgent && !handedOff && (
@@ -37,10 +36,30 @@ export function ShiftChip({ shift }: { shift: Shift }) {
           className="size-1.5 shrink-0 rounded-full bg-secondary"
         />
       )}
-      <span className="truncate">
+      {/* Full opacity even though the label fades — the mark that it's
+          settled should stay legible, not fade along with the rest. */}
+      {handedOff && <CheckMark className="shrink-0 text-secondary-fg" />}
+      <span className={cn("truncate", handedOff && "opacity-45 line-through")}>
         {formatLocation(shift.department, shift.internalUnit)}
       </span>
     </span>
+  );
+}
+
+function CheckMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={cn("size-2.5", className)}
+    >
+      <path d="M5 13l4 4L19 7" />
+    </svg>
   );
 }
 

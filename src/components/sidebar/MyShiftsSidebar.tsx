@@ -18,7 +18,12 @@ import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import { formatFullDate } from "@/lib/date/calendar";
 import { parseDateKey } from "@/lib/date/monthWindow";
 import { buildWhatsAppUrl, formatPhoneForDisplay } from "@/lib/whatsapp";
-import { confirmHandoff, deleteShift, reopenShift } from "@/lib/data/shifts";
+import {
+  confirmHandoff,
+  deleteShift,
+  markShiftHandedOff,
+  reopenShift,
+} from "@/lib/data/shifts";
 import { declineInterest } from "@/lib/data/interests";
 import {
   useBrowsableMonths,
@@ -34,8 +39,9 @@ import type { Interest, Shift } from "@/lib/domain/types";
  * place in the app that shows it.
  *
  * This is the owner's side of the exchange: what they have posted, who has
- * asked for it, and the two actions that close the loop — confirming a taker,
- * or deleting the shift once it is settled.
+ * asked for it, and the actions that close the loop — confirming a taker,
+ * marking a shift handed off by hand ("מסרתי"), or deleting a mistaken post
+ * outright ("התחרטתי").
  */
 export function MyShiftsSidebar() {
   const { user } = useAuth();
@@ -94,7 +100,7 @@ function MyShiftCard({
   shift: Shift;
   interests: Interest[];
 }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingRegret, setConfirmingRegret] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -184,10 +190,6 @@ function MyShiftCard({
         </div>
       )}
 
-      {!handedOff && pending.length === 0 && (
-        <p className="mt-2 text-xs text-muted">עדיין אף אחד לא סימן עניין</p>
-      )}
-
       {error && (
         <p role="alert" className="mt-2 text-xs font-medium text-urgent">
           {error}
@@ -206,36 +208,50 @@ function MyShiftCard({
           </Button>
         )}
 
-        {confirmingDelete ? (
-          <>
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={busy}
-              onClick={() =>
-                run(() => deleteShift(shift), "המחיקה נכשלה")
-              }
-            >
-              {busy ? <Spinner className="size-4" /> : "כן, למחוק"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              ביטול
-            </Button>
-          </>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            מחיקה
-          </Button>
-        )}
+        {!handedOff &&
+          (confirmingRegret ? (
+            <>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={busy}
+                onClick={() =>
+                  run(() => deleteShift(shift), "המחיקה נכשלה")
+                }
+              >
+                {busy ? <Spinner className="size-4" /> : "כן, למחוק"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setConfirmingRegret(false)}
+              >
+                ביטול
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() =>
+                  run(() => markShiftHandedOff(shift), "הפעולה נכשלה")
+                }
+              >
+                מסרתי
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setConfirmingRegret(true)}
+              >
+                התחרטתי
+              </Button>
+            </>
+          ))}
       </div>
     </li>
   );

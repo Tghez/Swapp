@@ -254,3 +254,16 @@ export async function reopenShift(shift: Shift): Promise<void> {
     takenBy: null,
   });
 }
+
+/**
+ * The owner marks a shift as handed off without going through the
+ * confirm-an-applicant flow — e.g. it was settled outside the app. Unlike
+ * {@link deleteShift}, the shift stays in the calendar (struck through and
+ * marked, see `ShiftChip`) instead of disappearing everywhere.
+ */
+export async function markShiftHandedOff(shift: Shift): Promise<void> {
+  await updateDoc(doc(getDb(), COLLECTIONS.shifts, shift.id), {
+    status: "handedOff",
+    takenBy: null,
+  });
+}

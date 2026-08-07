@@ -177,8 +177,8 @@ function ShiftDetail({
         {shift.urgent && !handedOff && <UrgentBadge />}
         {shift.willingToSwap && !handedOff && <SwapBadge />}
         {handedOff && (
-          <span className="rounded-pill bg-text/10 px-2 py-0.5 text-xs font-bold text-muted">
-            נמסרה
+          <span className="rounded-pill bg-secondary/20 px-2 py-0.5 text-xs font-bold text-secondary-fg">
+            ✓ נמסרה
           </span>
         )}
       </div>

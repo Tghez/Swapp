@@ -66,14 +66,23 @@ function BoardView() {
    */
   const visibleShifts = useMemo(() => {
     return shifts.filter((shift) => {
-      if (!showHandedOff && shift.status === "handedOff") return false;
+      // Someone else's handed-off shift is stale noise while browsing for
+      // one to take, so it stays behind the checkbox. Your own stays visible
+      // regardless — that's the calendar record of "I handed this off".
+      if (
+        !showHandedOff &&
+        shift.status === "handedOff" &&
+        shift.ownerId !== user?.uid
+      ) {
+        return false;
+      }
       if (department && shift.department !== department) return false;
       if (department === "pnimit" && unit && shift.internalUnit !== unit) {
         return false;
       }
       return true;
     });
-  }, [shifts, department, unit, showHandedOff]);
+  }, [shifts, department, unit, showHandedOff, user?.uid]);
 
   const selectedDayShifts = useMemo(() => {
     if (!selectedDay) return [];
