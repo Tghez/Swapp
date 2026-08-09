@@ -70,12 +70,18 @@ body {
 }
 
 /*
- * Native date inputs render the picker indicator on the right, which
- * collides with RTL field layout. Push it to the left edge instead.
+ * The date field is forced to dir="ltr" (see HandoffForm) so its digits read
+ * left-to-right inside the RTL page. That alone gives the native picker
+ * indicator correct LTR placement — this used to also push it with
+ * margin-inline-end: auto, a leftover from when the input had no explicit
+ * dir and inherited the page's RTL; with dir="ltr" now set, that auto
+ * margin fights the browser's own placement instead of fixing it, so it's
+ * removed. Constrain the indicator so it can never render outside the
+ * input's own box.
  */
 input[type="date"]::-webkit-calendar-picker-indicator {
-  margin-inline-start: 0;
-  margin-inline-end: auto;
+  margin: 0;
+  max-width: 1.25rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

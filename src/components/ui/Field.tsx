@@ -4,7 +4,7 @@ import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const CONTROL =
-  "h-11 w-full rounded-card border bg-surface px-4 text-base text-text " +
+  "h-11 w-full min-w-0 max-w-full rounded-card border bg-surface px-4 text-base text-text " +
   "placeholder:text-muted/70 transition-colors focus:border-secondary " +
   "disabled:opacity-60";
 
