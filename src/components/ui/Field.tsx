@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { format } from "date-fns";
 import { cn } from "@/lib/cn";
+import { parseDateKey } from "@/lib/date/monthWindow";
 
 const CONTROL =
   "h-11 w-full min-w-0 max-w-full rounded-card border bg-surface px-4 text-base text-text " +
@@ -76,6 +78,70 @@ export function TextField({
           )}
           {...props}
         />
+      )}
+    </FieldShell>
+  );
+}
+
+interface DateFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min?: string;
+  max?: string;
+  error?: string;
+  hint?: ReactNode;
+  placeholder?: string;
+}
+
+/**
+ * iOS Safari formats input[type=date] using the device's region setting, not
+ * anything under our control (dir/lang attributes are ignored) — on a
+ * Hebrew-region device that spells out the month ("31 באוגוסט 2026") instead
+ * of "31/08/2026", and the long text overflows the field. So the native
+ * value is rendered invisible (still focusable, still opens the native
+ * picker) and a custom-formatted label is drawn on top of it instead.
+ */
+export function DateField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  error,
+  hint,
+  placeholder = "בחר תאריך",
+}: DateFieldProps) {
+  return (
+    <FieldShell label={label} error={error} hint={hint}>
+      {(id, describedBy) => (
+        <div className="relative">
+          <input
+            id={id}
+            type="date"
+            dir="ltr"
+            value={value}
+            min={min}
+            max={max}
+            aria-describedby={describedBy}
+            aria-invalid={error ? true : undefined}
+            onChange={(event) => onChange(event.target.value)}
+            className={cn(
+              CONTROL,
+              "appearance-none text-transparent caret-transparent",
+              error ? "border-urgent" : "border-border",
+            )}
+          />
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-4 flex items-center text-base",
+              value ? "text-text" : "text-muted/70",
+            )}
+          >
+            {value ? format(parseDateKey(value), "dd/MM/yyyy") : placeholder}
+          </span>
+        </div>
       )}
     </FieldShell>
   );

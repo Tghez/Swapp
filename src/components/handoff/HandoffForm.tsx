@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
   CheckboxField,
+  DateField,
   SelectField,
   TextAreaField,
   TextField,
@@ -251,10 +252,10 @@ export function HandoffForm() {
       </Card>
 
       <Card className="flex flex-col gap-4">
-        <TextField
+        <DateField
           label="תאריך התורנות"
           value={values.date}
-          onChange={(e) => update("date", e.target.value)}
+          onChange={(value) => update("date", value)}
           error={
             errors.date ||
             (dailyLimitReached
@@ -263,10 +264,6 @@ export function HandoffForm() {
                 ? "פרסמת כבר 4 תורנויות החודש — זו המכסה"
                 : undefined)
           }
-          type="date"
-          dir="ltr"
-          lang="en-GB"
-          className="appearance-none text-start"
           min={dateKeyOf(range.min)}
           max={dateKeyOf(range.max)}
           hint={
