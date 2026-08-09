@@ -126,6 +126,10 @@ export function DateField({
             aria-describedby={describedBy}
             aria-invalid={error ? true : undefined}
             onChange={(event) => onChange(event.target.value)}
+            // iOS Safari renders form-control text via -webkit-text-fill-color,
+            // which wins over `color` — text-transparent alone leaves the
+            // native (locale-formatted) text visible underneath our overlay.
+            style={{ WebkitTextFillColor: "transparent" }}
             className={cn(
               CONTROL,
               "appearance-none text-transparent caret-transparent",
