@@ -71,9 +71,12 @@ export function HandoffForm() {
 
   /**
    * Autofill (PDR §4): the saved profile wins, since that is what the intern
-   * typed themselves. On the very first visit there is no profile yet, so fall
-   * back to what Google supplied — which covers name and email but never a
-   * phone number, the one field they must always enter once.
+   * typed themselves. On the very first visit there is no profile yet — the
+   * name field starts blank rather than falling back to Google's, since that
+   * is often an English name and this is the one field the intern should
+   * type themselves in Hebrew. Email and phone still fall back to Google
+   * where available; phone never comes from Google, so it is always typed
+   * once regardless.
    *
    * These are defaults rather than initial state, and what the intern types is
    * held separately as `edits`. That way the fields fill in the moment the
@@ -83,7 +86,7 @@ export function HandoffForm() {
   const defaults = useMemo<FormState>(
     () => ({
       ...BLANK,
-      displayName: profile?.displayName || user?.displayName || "",
+      displayName: profile?.displayName || "",
       phone: profile?.phone || "",
       email: profile?.email || user?.email || "",
     }),
@@ -223,7 +226,7 @@ export function HandoffForm() {
           value={values.displayName}
           onChange={(e) => update("displayName", e.target.value)}
           error={errors.displayName}
-          autoComplete="name"
+          autoComplete="off"
           placeholder="שם מלא"
         />
         <TextField
