@@ -57,7 +57,7 @@ function Greeting() {
           "מפרסמים תורנות שצריך למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ."}
       </p>
 
-      <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:justify-center">
+      <div className="mt-10 flex w-full max-w-md flex-row gap-4 justify-center">
         <ButtonLink href="/handoff" size="lg" className="flex-1">
           למסור תורנות
         </ButtonLink>
