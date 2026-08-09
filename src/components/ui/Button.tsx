@@ -6,6 +6,7 @@ export type ButtonVariant =
   | "primary"
   | "secondary"
   | "secondaryFilled"
+  | "outline"
   | "ghost"
   | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -24,6 +25,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
   // Filled eucalyptus — for the rare spot where "take a shift" needs the same
   // visual weight as the primary "hand one off" action, not a quieter outline.
   secondaryFilled: "bg-secondary text-secondary-fg hover:bg-secondary-hover shadow-sm",
+  // Neutral: white fill, bordered only — for third-party sign-in buttons and
+  // anywhere the brand colours would be wrong (e.g. next to a Google mark).
+  outline: "border border-border text-text bg-surface hover:bg-bg shadow-sm",
   ghost: "text-muted hover:text-text hover:bg-border/40",
   // Urgency red is reserved for destructive intent and the דחיפות flag; it is
   // never used as an ordinary button colour.

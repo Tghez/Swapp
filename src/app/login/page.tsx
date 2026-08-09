@@ -37,15 +37,23 @@ export default function LoginPage() {
   if (loading || user) return <PageLoader />;
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-md text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/icons/icon.svg"
-          alt=""
-          aria-hidden="true"
-          className="mx-auto mb-5 size-20 rounded-2xl"
-        />
+    <main className="relative flex min-h-full flex-1 items-center justify-center overflow-hidden p-4">
+      {/* Soft ambient glow behind the card — decorative only. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-28 -right-20 size-72 rounded-full bg-primary/25 blur-3xl" />
+        <div className="absolute -bottom-28 -left-20 size-72 rounded-full bg-secondary/20 blur-3xl" />
+      </div>
+
+      <Card className="w-full max-w-md text-center shadow-lg">
+        <div className="mx-auto mb-5 flex size-20 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons/icon.svg"
+            alt=""
+            aria-hidden="true"
+            className="size-12"
+          />
+        </div>
         <h1 className="text-2xl font-bold text-text">Swapp</h1>
         {/* String expression, not raw JSX text — see the note on the landing page. */}
         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -60,13 +68,14 @@ export default function LoginPage() {
         ) : (
           <>
             <Button
+              variant="outline"
               size="lg"
               onClick={handleSignIn}
               disabled={signingIn}
-              className="mt-7 w-full"
+              className="mt-8 w-full"
             >
               {signingIn ? (
-                <Spinner className="size-5 border-primary-fg/30 border-t-primary-fg" />
+                <Spinner className="size-5 border-border border-t-text" />
               ) : (
                 <GoogleMark />
               )}
