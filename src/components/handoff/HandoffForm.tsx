@@ -265,7 +265,7 @@ export function HandoffForm() {
           }
           type="date"
           dir="ltr"
-          className="text-start"
+          className="appearance-none text-start"
           min={dateKeyOf(range.min)}
           max={dateKeyOf(range.max)}
           hint={
