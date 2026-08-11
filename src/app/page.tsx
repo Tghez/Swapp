@@ -54,7 +54,7 @@ function Greeting() {
       */}
       <p className="mt-4 max-w-md text-base leading-relaxed text-muted">
         {"Swapp הוא המקום שבו סטאז'רים באיכילוב מוסרים ולוקחים תורנויות. " +
-          "מפרסמים תורנות שצריך למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ."}
+          "מפרסמים תורנות שרוצים למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ."}
       </p>
 
       <div className="mt-10 flex w-full max-w-md flex-row gap-4 justify-center">
