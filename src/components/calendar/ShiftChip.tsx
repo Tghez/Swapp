@@ -20,14 +20,22 @@ export function ShiftChip({ shift }: { shift: Shift }) {
   return (
     <span
       className={cn(
-        "flex w-full items-center gap-1 overflow-hidden rounded-md border-s-4 px-1.5 py-0.5 text-start text-[11px] font-medium leading-tight text-text",
+        "flex w-full items-center gap-1 overflow-hidden rounded-md px-1 py-0.5 text-start text-[10px] font-medium leading-tight text-text",
         department.chipClass,
       )}
     >
       {/* Full opacity even though the label fades — the mark that it's
           settled should stay legible, not fade along with the rest. */}
       {handedOff && <CheckMark className="shrink-0 text-secondary-fg" />}
-      <span className={cn("truncate", handedOff && "opacity-45 line-through")}>
+      {/* No truncate/ellipsis: cells are narrow enough that the "..." itself
+          eats the space it's meant to save. Clip instead so every character
+          that fits is shown. */}
+      <span
+        className={cn(
+          "overflow-hidden whitespace-nowrap",
+          handedOff && "opacity-45 line-through",
+        )}
+      >
         {formatChipLabel(shift.department, shift.internalUnit)}
       </span>
     </span>
