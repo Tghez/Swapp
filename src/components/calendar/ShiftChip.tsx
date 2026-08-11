@@ -20,7 +20,7 @@ export function ShiftChip({ shift }: { shift: Shift }) {
   return (
     <span
       className={cn(
-        "flex w-full items-center gap-1 overflow-hidden rounded-md px-1 py-0.5 text-start text-[10px] font-medium leading-tight text-text",
+        "flex w-full items-center gap-1 overflow-hidden rounded-md px-0.5 py-0.5 text-start text-[10px] font-medium leading-tight tracking-tight text-text",
         department.chipClass,
       )}
     >
