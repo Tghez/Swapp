@@ -38,7 +38,7 @@
   /* Department accents. `soft` = chip background, plain = dot / border.
      Chip labels always render in --color-text on the soft tint, so colour
      is never the only carrier of meaning. */
-  --color-dept-pnimit: #b8760c;
+  --color-dept-pnimit: #e0a815;
   --color-dept-pnimit-soft: #fbe8c8;
   --color-dept-miyun-klali: #b65f30;
   --color-dept-miyun-klali-soft: #f5dccb;
