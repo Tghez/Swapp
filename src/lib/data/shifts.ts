@@ -93,12 +93,9 @@ export function subscribeToMyShifts(
  * The date lock works exactly like the urgency lock: its id is derived from
  * uid + the shift's own date (not the day it is posted), so a second shift
  * dated the same day is a `create` on a document that already exists, which
- * the rules do not permit — and unlike the monthly counter, this one is
- * never released, so posting and cancelling repeatedly cannot be used to
- * free up an already-claimed date. The monthly counter instead increments a
- * `count` field the rules cap at 4; {@link deleteShift} decrements it again,
- * so the cap tracks shifts currently on the books rather than shifts ever
- * posted.
+ * the rules do not permit. {@link deleteShift} releases it again, same as
+ * the monthly counter's `count` field (capped at 4 by the rules) — so both
+ * track shifts currently on the books rather than shifts ever posted.
  */
 export async function createShift(
   uid: string,
@@ -184,7 +181,8 @@ export async function createShift(
  * decremented too, so the four-a-month cap tracks shifts still on the books
  * rather than shifts ever posted — a shift marked handed off via
  * {@link markShiftHandedOff} stays counted, since only deletion frees the
- * slot.
+ * slot. The daily lock is released as well, so the date is free again if the
+ * intern regrets the delete and wants to re-post it.
  */
 export async function deleteShift(shift: Shift): Promise<void> {
   const db = getDb();
@@ -195,6 +193,10 @@ export async function deleteShift(shift: Shift): Promise<void> {
   batch.update(
     doc(db, COLLECTIONS.handoffCounts, handoffCountId(shift.ownerId, shift.monthKey)),
     { count: increment(-1) },
+  );
+
+  batch.delete(
+    doc(db, COLLECTIONS.dailyLocks, dailyLockId(shift.ownerId, shift.date)),
   );
 
   if (shift.urgent) {

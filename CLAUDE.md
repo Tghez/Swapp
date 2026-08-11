@@ -96,14 +96,12 @@ One deliberate choice worth not "fixing":
    `dailyLocks/{uid}__{date}` (create-only, same trick as urgencyLocks, keyed
    on the shift's own date) and increments
    `handoffCounts/{uid}__{monthKey}.count` (rules cap it at 4 and pin the step
-   to exactly ±1) in the same batch as the shift. `deleteShift` decrements the
-   monthly counter back down, so the cap tracks shifts currently posted rather
-   than shifts ever posted — a shift marked handed off via `markShiftHandedOff`
-   stays on the books (and counted) since only deletion frees the slot. **The
-   daily lock is the one exception: it is never released when a shift is
-   deleted**, so post-then-cancel still can't be used to free up an
-   already-claimed date. Don't add a delete/release path for the daily lock
-   without re-checking that trade-off.
+   to exactly ±1) in the same batch as the shift. `deleteShift` releases both
+   the monthly counter and the daily lock, so the cap and the per-date limit
+   track shifts currently posted rather than shifts ever posted — a shift
+   marked handed off via `markShiftHandedOff` stays on the books (and
+   counted) since only deletion frees the slot, and deleting a shift lets the
+   intern immediately re-post on that same date.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.

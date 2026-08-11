@@ -295,9 +295,14 @@ describe("the one-shift-per-date limit", () => {
     );
   });
 
-  it("does not refund the day when the shift is deleted", async () => {
+  it("refunds the day when the intern deletes their shift", async () => {
     await setDoc(doc(db(BOB), "dailyLocks", lockId), dailyLockDoc());
-    await assertFails(deleteDoc(doc(db(BOB), "dailyLocks", lockId)));
+    await assertSucceeds(deleteDoc(doc(db(BOB), "dailyLocks", lockId)));
+  });
+
+  it("stops one intern releasing another's lock", async () => {
+    await setDoc(doc(db(BOB), "dailyLocks", lockId), dailyLockDoc());
+    await assertFails(deleteDoc(doc(db(ALICE), "dailyLocks", lockId)));
   });
 });
 

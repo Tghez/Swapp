@@ -209,8 +209,8 @@ export function HandoffForm() {
       // A denied write here means one of the server-enforced limits kicked
       // in: the urgency lock, the daily lock, or the monthly handoff cap.
       // The client-side hints above cover the common cases, so this is the
-      // fallback for whatever they missed (e.g. a shift deleted and quota
-      // still spent, or state that changed in another tab).
+      // fallback for whatever they missed (e.g. state that changed in
+      // another tab).
       const message =
         caught instanceof Error && caught.message.includes("permission")
           ? "לא ניתן לפרסם. ייתכן שהגעת למכסה החודשית, כבר פרסמת תורנות היום, או שכבר סימנת דחיפות לחודש הזה."

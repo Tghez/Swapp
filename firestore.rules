@@ -120,10 +120,7 @@ service cloud.firestore {
      * Same mechanism as urgencyLocks: the id is derived from uid + the
      * shift's own date (not the day it is posted) and written in the same
      * batch as the shift, so a second shift dated the same day is a create
-     * on an existing document and fails, taking the batch with it. Unlike
-     * urgencyLocks there is no delete rule — deleting the shift does not
-     * free the date back up, or posting-then-cancelling could be used to
-     * dodge the limit.
+     * on an existing document and fails, taking the batch with it.
      */
     match /dailyLocks/{lockId} {
       allow read: if signedIn() && resource.data.uid == uid();
@@ -135,7 +132,10 @@ service cloud.firestore {
         && incoming().expireAt is timestamp;
 
       allow update: if false;
-      allow delete: if false;
+
+      // Released when the shift is deleted, so the date is free again if
+      // the intern regrets the delete and wants to re-post it.
+      allow delete: if signedIn() && resource.data.uid == uid();
     }
 
     // ------------------------------------------------------- handoffCounts
