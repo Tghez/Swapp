@@ -24,18 +24,6 @@ export function ShiftChip({ shift }: { shift: Shift }) {
         department.chipClass,
       )}
     >
-      {shift.urgent && !handedOff && (
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-urgent"
-        />
-      )}
-      {shift.willingToSwap && !handedOff && (
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-secondary"
-        />
-      )}
       {/* Full opacity even though the label fades — the mark that it's
           settled should stay legible, not fade along with the rest. */}
       {handedOff && <CheckMark className="shrink-0 text-secondary-fg" />}
