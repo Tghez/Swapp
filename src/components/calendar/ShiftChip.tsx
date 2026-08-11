@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import {
   DEPARTMENTS,
-  formatLocation,
+  formatChipLabel,
   getDepartment,
 } from "@/lib/domain/departments";
 import type { Shift } from "@/lib/domain/types";
@@ -28,7 +28,7 @@ export function ShiftChip({ shift }: { shift: Shift }) {
           settled should stay legible, not fade along with the rest. */}
       {handedOff && <CheckMark className="shrink-0 text-secondary-fg" />}
       <span className={cn("truncate", handedOff && "opacity-45 line-through")}>
-        {formatLocation(shift.department, shift.internalUnit)}
+        {formatChipLabel(shift.department, shift.internalUnit)}
       </span>
     </span>
   );

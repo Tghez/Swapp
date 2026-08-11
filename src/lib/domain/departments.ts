@@ -24,6 +24,14 @@ export type DepartmentId = (typeof DEPARTMENT_IDS)[number];
 export interface Department {
   id: DepartmentId;
   label: string;
+  /**
+   * Short form for the calendar chip, where a full label plus unit would
+   * truncate to something indistinguishable from a sibling department (e.g.
+   * "מיון כללי" and "מיון ילדים" both cut down to "מיון ..."). Full
+   * elsewhere — sidebar, day detail, WhatsApp text — always use `label` via
+   * `formatLocation`.
+   */
+  shortLabel: string;
   /** Whether this department requires an additional unit selection. */
   hasUnits: boolean;
   /** Chip background + border, used on calendar and in day detail. */
@@ -36,6 +44,7 @@ export const DEPARTMENTS: readonly Department[] = [
   {
     id: "pnimit",
     label: "פנימית",
+    shortLabel: "פני.",
     hasUnits: true,
     chipClass: "bg-dept-pnimit-soft border-dept-pnimit",
     dotClass: "bg-dept-pnimit",
@@ -43,6 +52,7 @@ export const DEPARTMENTS: readonly Department[] = [
   {
     id: "miyun_klali",
     label: "מיון כללי",
+    shortLabel: "מ. כללי",
     hasUnits: false,
     chipClass: "bg-dept-miyun-klali-soft border-dept-miyun-klali",
     dotClass: "bg-dept-miyun-klali",
@@ -50,6 +60,7 @@ export const DEPARTMENTS: readonly Department[] = [
   {
     id: "miyun_yeladim",
     label: "מיון ילדים",
+    shortLabel: "מ. ילדים",
     hasUnits: false,
     chipClass: "bg-dept-miyun-yeladim-soft border-dept-miyun-yeladim",
     dotClass: "bg-dept-miyun-yeladim",
@@ -57,6 +68,7 @@ export const DEPARTMENTS: readonly Department[] = [
   {
     id: "kirurgia",
     label: "כירורגיה",
+    shortLabel: "כירורגיה",
     hasUnits: false,
     chipClass: "bg-dept-kirurgia-soft border-dept-kirurgia",
     dotClass: "bg-dept-kirurgia",
@@ -124,4 +136,18 @@ export function formatLocation(
   if (!department.hasUnits || !unitId) return department.label;
   const unit = PNIMIT_UNIT_BY_ID.get(unitId);
   return unit ? `${department.label} ${unit.label}` : department.label;
+}
+
+/**
+ * Short location for the calendar chip — see `Department.shortLabel` for why
+ * this differs from `formatLocation`.
+ */
+export function formatChipLabel(
+  departmentId: DepartmentId,
+  unitId: PnimitUnitId | null,
+): string {
+  const department = getDepartment(departmentId);
+  if (!department.hasUnits || !unitId) return department.shortLabel;
+  const unit = PNIMIT_UNIT_BY_ID.get(unitId);
+  return unit ? `${department.shortLabel} ${unit.label}` : department.shortLabel;
 }
