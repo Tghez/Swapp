@@ -29,6 +29,12 @@
   --color-urgent: #d6452a;
   --color-urgent-soft: #fbe0d9;
 
+  /* Info — light blue, for non-urgent opt-in affordances (e.g. "also open
+     to swapping"). Same soft-fill treatment as urgent, different hue so the
+     two are never confused. */
+  --color-info: #4f8fc7;
+  --color-info-soft: #dcebf7;
+
   /* Department accents. `soft` = chip background, plain = dot / border.
      Chip labels always render in --color-text on the soft tint, so colour
      is never the only carrier of meaning. */

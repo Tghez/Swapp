@@ -252,7 +252,23 @@ interface CheckboxFieldProps {
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   hint?: ReactNode;
+  /** Visual tone. "urgent" (coral) is reserved for actual urgency; use
+   * "info" (light blue) for ordinary opt-in checkboxes. */
+  tone?: "urgent" | "info";
 }
+
+const checkboxTone = {
+  urgent: {
+    hoverBorder: "hover:border-urgent",
+    checked: "border-urgent bg-urgent-soft",
+    accent: "accent-[var(--color-urgent)]",
+  },
+  info: {
+    hoverBorder: "hover:border-info",
+    checked: "border-info bg-info-soft",
+    accent: "accent-[var(--color-info)]",
+  },
+} as const;
 
 export function CheckboxField({
   label,
@@ -260,18 +276,21 @@ export function CheckboxField({
   onChange,
   disabled,
   hint,
+  tone = "urgent",
 }: CheckboxFieldProps) {
   const id = useId();
+  const toneClasses = checkboxTone[tone];
   return (
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={id}
         className={cn(
           "flex items-center gap-3 rounded-card border px-4 py-3 transition-colors",
-          disabled
-            ? "cursor-not-allowed border-border bg-surface/60 opacity-70"
-            : "cursor-pointer border-border bg-surface hover:border-urgent",
-          checked && !disabled && "border-urgent bg-urgent-soft",
+          disabled && "cursor-not-allowed border-border bg-surface/60 opacity-70",
+          !disabled &&
+            (checked
+              ? cn("cursor-pointer", toneClasses.checked)
+              : cn("cursor-pointer border-border bg-surface", toneClasses.hoverBorder)),
         )}
       >
         <input
@@ -280,7 +299,7 @@ export function CheckboxField({
           checked={checked}
           disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
-          className="size-5 accent-[var(--color-urgent)]"
+          className={cn("size-5", toneClasses.accent)}
         />
         <span className="text-sm font-semibold text-text">{label}</span>
       </label>

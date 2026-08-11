@@ -201,13 +201,14 @@ service cloud.firestore {
     // ------------------------------------------------------- handoffCounts
 
     /*
-     * "At most four shifts posted per intern per month."
+     * "At most four shifts posted per intern per month, counting shifts
+     * still on the books."
      *
-     * The id is derived from uid + month, and `count` only ever moves up by
-     * exactly one and is capped at 4 — both pinned so a forged request can
-     * neither jump the counter nor claw it back down. There is no delete
-     * rule and no path that decrements it, so — like dailyLocks — deleting a
-     * posted shift does not refund the slot.
+     * The id is derived from uid + month. `count` moves by exactly one step
+     * at a time — up on `createShift`, down on `deleteShift` — and is
+     * clamped to [0, 4], both pinned so a forged request can neither jump
+     * the counter nor drive it out of range. The counter document itself is
+     * never deleted, only its `count` field.
      */
     match /handoffCounts/{lockId} {
       allow read: if signedIn() && resource.data.uid == uid();
@@ -222,8 +223,10 @@ service cloud.firestore {
       allow update: if signedIn()
         && resource.data.uid == uid()
         && changedKeys().hasOnly(['count'])
-        && incoming().count == resource.data.count + 1
-        && incoming().count <= 4;
+        && (
+          (incoming().count == resource.data.count + 1 && incoming().count <= 4)
+          || (incoming().count == resource.data.count - 1 && incoming().count >= 0)
+        );
 
       allow delete: if false;
     }

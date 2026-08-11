@@ -94,10 +94,12 @@ export function subscribeToMyShifts(
  * The date lock works exactly like the urgency lock: its id is derived from
  * uid + the shift's own date (not the day it is posted), so a second shift
  * dated the same day is a `create` on a document that already exists, which
- * the rules do not permit. The monthly counter instead increments a `count`
- * field the rules cap at 4 — deliberately not released when a shift is
- * deleted, so posting and cancelling repeatedly cannot be used to dodge
- * either cap.
+ * the rules do not permit — and unlike the monthly counter, this one is
+ * never released, so posting and cancelling repeatedly cannot be used to
+ * free up an already-claimed date. The monthly counter instead increments a
+ * `count` field the rules cap at 4; {@link deleteShift} decrements it again,
+ * so the cap tracks shifts currently on the books rather than shifts ever
+ * posted.
  */
 export async function createShift(
   uid: string,
@@ -183,13 +185,22 @@ export async function createShift(
  * Any interests pointing at it go too — Firestore has no cascade, and leaving
  * them would show phantom entries in the owner's inbox until TTL caught up.
  * An urgent shift also releases its lock, so deleting a mistaken post does not
- * cost the intern their דחיפות for the month.
+ * cost the intern their דחיפות for the month. The monthly handoff counter is
+ * decremented too, so the four-a-month cap tracks shifts still on the books
+ * rather than shifts ever posted — a shift marked handed off via
+ * {@link confirmHandoff} or {@link markShiftHandedOff} stays counted, since
+ * only deletion frees the slot.
  */
 export async function deleteShift(shift: Shift): Promise<void> {
   const db = getDb();
   const batch = writeBatch(db);
 
   batch.delete(doc(db, COLLECTIONS.shifts, shift.id));
+
+  batch.update(
+    doc(db, COLLECTIONS.handoffCounts, handoffCountId(shift.ownerId, shift.monthKey)),
+    { count: increment(-1) },
+  );
 
   // Constrained by shiftOwnerId as well as shiftId, not because both are
   // needed to find the documents but because Firestore rejects any query it

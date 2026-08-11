@@ -112,10 +112,12 @@ export function HandoffForm() {
   /**
    * At most one shift per date and four a month, mirrored client-side from
    * `myShifts` for an honest hint — the server (via dailyLocks and
-   * handoffCounts) is what actually enforces it, and does not forget a slot
-   * just because the shift behind it was later deleted, so these can
-   * under-count after a cancel. That is fine: the goal here is to keep the
-   * interface honest, not to be the source of truth.
+   * handoffCounts) is what actually enforces it. The two agree for the
+   * monthly cap: deleting a shift both drops it from `myShifts` and
+   * decrements `handoffCounts`. They diverge for the daily lock, which is
+   * never released — a deleted shift frees its date here client-side even
+   * though the server still holds it, so a genuine conflict there only
+   * surfaces once the server rejects the post.
    *
    * Suppressed while `submitting`: the moment a post succeeds, the realtime
    * `myShifts` subscription picks up the shift just created — before
@@ -326,7 +328,8 @@ export function HandoffForm() {
                 : "opacity-0 translate-y-1",
             )}
           >
-            ניתן לסמן רק תורנות אחת בחודש כדחופה
+            <span className="font-bold">שים לב:</span> ניתן לסמן רק תורנות
+            אחת בחודש כדחופה
           </div>
           <CheckboxField
             label="דחוף לי למסור"
@@ -348,6 +351,7 @@ export function HandoffForm() {
           checked={values.willingToSwap}
           onChange={(checked) => update("willingToSwap", checked)}
           hint="פתוח גם להחליף תורנויות, לא רק למסור"
+          tone="info"
         />
       </Card>
 

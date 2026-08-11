@@ -98,16 +98,21 @@ Two deliberate choices worth not "fixing":
    uses a transaction so this holds under concurrency. Do not switch to
    `increment()` without re-verifying the rule still passes.
 
-3a. **An intern may hold at most one shift per date and 4 a month.** The daily
-   limit is per **shift date**, not per day of posting — an intern can post
-   several shifts in one sitting as long as no two land on the same date.
-   `createShift` writes `dailyLocks/{uid}__{date}` (create-only, same trick as
-   urgencyLocks, keyed on the shift's own date) and increments
+3a. **An intern may hold at most one shift per date and 4 a month, counting
+   shifts still on the books.** The daily limit is per **shift date**, not per
+   day of posting — an intern can post several shifts in one sitting as long
+   as no two land on the same date. `createShift` writes
+   `dailyLocks/{uid}__{date}` (create-only, same trick as urgencyLocks, keyed
+   on the shift's own date) and increments
    `handoffCounts/{uid}__{monthKey}.count` (rules cap it at 4 and pin the step
-   to exactly +1) in the same batch as the shift. Unlike urgencyLocks,
-   **neither is released when the shift is deleted** — this was a deliberate
-   choice so post-then-cancel can't be used to dodge the cap. Don't add a
-   delete/decrement path without re-checking that trade-off.
+   to exactly ±1) in the same batch as the shift. `deleteShift` decrements the
+   monthly counter back down, so the cap tracks shifts currently posted rather
+   than shifts ever posted — a shift marked handed off via `confirmHandoff` or
+   `markShiftHandedOff` stays on the books (and counted) since only deletion
+   frees the slot. **The daily lock is the one exception: it is never
+   released when a shift is deleted**, so post-then-cancel still can't be used
+   to free up an already-claimed date. Don't add a delete/release path for the
+   daily lock without re-checking that trade-off.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.

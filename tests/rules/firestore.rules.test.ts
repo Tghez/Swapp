@@ -510,10 +510,22 @@ describe("the four-a-month posting limit", () => {
     await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: 3 }));
   });
 
-  it("refuses a decrement", async () => {
+  it("allows decrementing by exactly one, refunding a slot", async () => {
     await seedCount(2);
     const bob = db(BOB);
+    await assertSucceeds(updateDoc(doc(bob, "handoffCounts", lockId), { count: 1 }));
+  });
+
+  it("refuses a decrement of more than one", async () => {
+    await seedCount(3);
+    const bob = db(BOB);
     await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: 1 }));
+  });
+
+  it("refuses decrementing below zero", async () => {
+    await seedCount(0);
+    const bob = db(BOB);
+    await assertFails(updateDoc(doc(bob, "handoffCounts", lockId), { count: -1 }));
   });
 
   it("refuses a counter claiming to belong to someone else", async () => {
@@ -522,8 +534,8 @@ describe("the four-a-month posting limit", () => {
     );
   });
 
-  it("does not refund a slot when a shift is deleted", async () => {
-    await seedCount(4);
+  it("never deletes the counter document itself, even at zero", async () => {
+    await seedCount(0);
     await assertFails(deleteDoc(doc(db(BOB), "handoffCounts", lockId)));
   });
 });
