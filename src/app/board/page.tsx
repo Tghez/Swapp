@@ -10,24 +10,14 @@ import { Card } from "@/components/ui/Card";
 import { SelectField } from "@/components/ui/Field";
 import { ErrorBanner, Spinner } from "@/components/ui/Feedback";
 import { cn } from "@/lib/cn";
-import {
-  useBrowsableMonths,
-  useMonthShifts,
-  useMyInterests,
-  useNow,
-} from "@/hooks/useShiftData";
-import {
-  useAuth,
-  useDisplayName,
-} from "@/components/providers/AuthProvider";
+import { useBrowsableMonths, useMonthShifts, useNow } from "@/hooks/useShiftData";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { DEPARTMENTS, PNIMIT_UNITS } from "@/lib/domain/departments";
 import {
   dateKeyOf,
   formatMonthLabel,
   parseMonthKey,
 } from "@/lib/date/monthWindow";
-import { registerInterest } from "@/lib/data/interests";
-import type { Shift } from "@/lib/domain/types";
 
 export default function BoardPage() {
   return (
@@ -40,8 +30,7 @@ export default function BoardPage() {
 }
 
 function BoardView() {
-  const { user, profile } = useAuth();
-  const takerName = useDisplayName();
+  const { user } = useAuth();
   const now = useNow();
   const months = useBrowsableMonths(now);
 
@@ -52,12 +41,6 @@ function BoardView() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const { data: shifts, loading, error } = useMonthShifts(monthKey);
-  const { data: myInterests } = useMyInterests(user?.uid);
-
-  const interestedShiftIds = useMemo(
-    () => new Set(myInterests.map((interest) => interest.shiftId)),
-    [myInterests],
-  );
 
   /**
    * Filtering happens here rather than in the Firestore query — a month holds
@@ -85,16 +68,6 @@ function BoardView() {
   }, [selectedDay, visibleShifts]);
 
   const monthDate = useMemo(() => parseMonthKey(monthKey), [monthKey]);
-
-  async function handleRegisterInterest(shift: Shift) {
-    if (!user) return;
-    await registerInterest({
-      shift,
-      takerId: user.uid,
-      takerName: takerName || "סטאז'ר",
-      takerPhone: profile?.phone ?? "",
-    });
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -196,8 +169,6 @@ function BoardView() {
         date={selectedDay}
         shifts={selectedDayShifts}
         currentUid={user?.uid ?? ""}
-        interestedShiftIds={interestedShiftIds}
-        onRegisterInterest={handleRegisterInterest}
         onClose={() => setSelectedDay(null)}
       />
     </div>

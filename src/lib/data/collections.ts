@@ -6,7 +6,6 @@
 export const COLLECTIONS = {
   users: "users",
   shifts: "shifts",
-  interests: "interests",
   urgencyLocks: "urgencyLocks",
   dailyLocks: "dailyLocks",
   handoffCounts: "handoffCounts",
@@ -17,11 +16,6 @@ export const COLLECTIONS = {
  * `create` fails if the document already exists, so a deterministic id turns
  * "at most one of these" into a rule the database enforces for free.
  */
-
-/** One interest per intern per shift. */
-export function interestId(shiftId: string, takerId: string): string {
-  return `${shiftId}__${takerId}`;
-}
 
 /** One דחיפות flag per intern per month (PDR §6.2). */
 export function urgencyLockId(uid: string, monthKey: string): string {

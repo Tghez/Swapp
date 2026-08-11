@@ -1,6 +1,6 @@
 import { Timestamp, type DocumentData } from "firebase/firestore";
 import { isDepartmentId, isPnimitUnitId } from "@/lib/domain/departments";
-import type { Shift, ShiftTakenBy } from "@/lib/domain/types";
+import type { Shift } from "@/lib/domain/types";
 
 /**
  * Firestore document → `Shift`.
@@ -10,8 +10,6 @@ import type { Shift, ShiftTakenBy } from "@/lib/domain/types";
  * wrong rather than crash the calendar for everyone looking at that month.
  */
 export function toShiftFromSnapshot(id: string, data: DocumentData): Shift {
-  const takenBy = data.takenBy as Partial<ShiftTakenBy> | null | undefined;
-
   return {
     id,
     ownerId: String(data.ownerId ?? ""),
@@ -26,16 +24,6 @@ export function toShiftFromSnapshot(id: string, data: DocumentData): Shift {
     urgent: data.urgent === true,
     willingToSwap: data.willingToSwap === true,
     status: data.status === "handedOff" ? "handedOff" : "open",
-    takenBy:
-      takenBy && takenBy.uid
-        ? {
-            uid: String(takenBy.uid),
-            name: String(takenBy.name ?? ""),
-            phone: String(takenBy.phone ?? ""),
-          }
-        : null,
-    interestCount:
-      typeof data.interestCount === "number" ? data.interestCount : 0,
     createdAt:
       data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
   };

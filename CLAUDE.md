@@ -4,8 +4,9 @@
 
 A Hebrew, RTL, mobile-first PWA where **סטאז'רים at Ichilov** hand over and take
 on-call shifts (תורנויות). One posts a shift they need covered; others browse a
-month calendar, register interest, and the two settle it over WhatsApp. The
-owner confirms who took it.
+month calendar and open WhatsApp straight from a shift to settle it directly
+with whoever posted it. The owner marks it handed off by hand once it's
+settled — the app never learns who took it.
 
 Built from a PDR the user supplied; section references like "PDR §6.3" appear
 throughout the code and mean that document.
@@ -32,7 +33,7 @@ npm test               # 60 unit tests, pure logic, no emulator
 npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm run emulators      # pinned to firebase-tools@13 — see note below
-npm run test:rules     # 55 rules tests, needs emulators running first
+npm run test:rules     # 40 rules tests, needs emulators running first
 npm run deploy:rules   # push firestore.rules + indexes
 ```
 
@@ -63,29 +64,24 @@ pure and heavily unit-tested — put logic there when you can.
 users/{uid}                     displayName, phone, email, updatedAt
 shifts/{auto}                   ownerId + denormalised owner contact, date,
                                 monthKey, department, internalUnit, note,
-                                urgent, status, takenBy, interestCount, expireAt
-interests/{shiftId}__{takerId}  shiftId, shiftOwnerId, takerId, takerName,
-                                takerPhone, status, expireAt
+                                urgent, status, expireAt
 urgencyLocks/{uid}__{YYYY-MM}   uid, monthKey, shiftId, expireAt
 dailyLocks/{uid}__{date}        uid, date, monthKey, shiftId, expireAt
 handoffCounts/{uid}__{YYYY-MM}  uid, monthKey, count (capped at 4), expireAt
 ```
 
-Two deliberate choices worth not "fixing":
+One deliberate choice worth not "fixing":
 
 - **Owner contact is denormalised onto each shift.** The board renders it and
   builds the wa.me link for every visible shift; reading `users/{uid}` per shift
   would be an N+1 *and* would force rules to expose every profile to everyone.
-- **`interests` is top-level, not a subcollection.** Deleting a Firestore
-  document does not delete documents beneath it, so nesting would leave orphans
-  that no TTL policy could reach.
 
 ## Invariants — do not break these
 
 1. **Composite ids are the enforcement mechanism.** Firestore refuses a `create`
-   on an existing document, so deriving the id from its data turns "one interest
-   per intern per shift" and "one דחיפות per month" into database guarantees.
-   Never switch these to auto-ids with a client-side check.
+   on an existing document, so deriving the id from its data turns "one דחיפות
+   per month" and "one shift per date" into database guarantees. Never switch
+   these to auto-ids with a client-side check.
 
 2. **דחיפות is enforced server-side.** An urgent shift is written in the same
    batch as `urgencyLocks/{uid}__{monthKey}`. Rules allow `create` there but
@@ -93,12 +89,7 @@ Two deliberate choices worth not "fixing":
    the atomic batch dies with it. The lock is keyed by the **shift's** month,
    not the posting month — that is what lets `deleteShift` release it.
 
-3. **`interestCount` may only be moved by a non-owner, by exactly +1.** Rules
-   pin both which field changes (`hasOnly`) and by how much. `registerInterest`
-   uses a transaction so this holds under concurrency. Do not switch to
-   `increment()` without re-verifying the rule still passes.
-
-3a. **An intern may hold at most one shift per date and 4 a month, counting
+3. **An intern may hold at most one shift per date and 4 a month, counting
    shifts still on the books.** The daily limit is per **shift date**, not per
    day of posting — an intern can post several shifts in one sitting as long
    as no two land on the same date. `createShift` writes
@@ -107,12 +98,12 @@ Two deliberate choices worth not "fixing":
    `handoffCounts/{uid}__{monthKey}.count` (rules cap it at 4 and pin the step
    to exactly ±1) in the same batch as the shift. `deleteShift` decrements the
    monthly counter back down, so the cap tracks shifts currently posted rather
-   than shifts ever posted — a shift marked handed off via `confirmHandoff` or
-   `markShiftHandedOff` stays on the books (and counted) since only deletion
-   frees the slot. **The daily lock is the one exception: it is never
-   released when a shift is deleted**, so post-then-cancel still can't be used
-   to free up an already-claimed date. Don't add a delete/release path for the
-   daily lock without re-checking that trade-off.
+   than shifts ever posted — a shift marked handed off via `markShiftHandedOff`
+   stays on the books (and counted) since only deletion frees the slot. **The
+   daily lock is the one exception: it is never released when a shift is
+   deleted**, so post-then-cancel still can't be used to free up an
+   already-claimed date. Don't add a delete/release path for the daily lock
+   without re-checking that trade-off.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.
@@ -121,16 +112,10 @@ Two deliberate choices worth not "fixing":
    trail expiry by ~24h. TTL keeps the database small; the query filter is what
    guarantees nothing stale is ever rendered. Both are needed.
 
-6. **Queries must be provably readable.** `interests` is readable only by taker
-   or shift owner, so any query must filter on `takerId` or `shiftOwnerId` —
-   otherwise Firestore rejects it outright. This is why `deleteShift` filters on
-   `shiftOwnerId` as well as `shiftId`.
-
 ## Gotchas
 
 - **WhatsApp must open via a real `<a href>`, never `window.open` after an
-  await.** Safari blocks a popup once the click's user gesture is consumed. The
-  interest write fires alongside the navigation, not before it.
+  await.** Safari blocks a popup once the click's user gesture is consumed.
 - **Sign-in uses `signInWithPopup` deliberately.** Redirect crosses origins to
   `*.firebaseapp.com` and breaks under third-party-storage partitioning. If it
   ever needs fixing, proxy `/__/auth/:path*` via a Next rewrite.
@@ -178,8 +163,9 @@ Two deliberate choices worth not "fixing":
 - The signed-in UI has been verified to build, typecheck, and ship its strings
   to the client bundles, but the rendered calendar has never been reviewed in a
   browser. Visual issues are likely and unexamined.
-- Taking a shift needs a second Google account to test — you cannot register
-  interest in your own shift.
+- Taking a shift opens WhatsApp directly — there is no in-app record of who
+  is interested or who ends up taking it. The owner manages that entirely
+  outside the app and marks it handed off by hand ("מסרתי") once settled.
 - TTL policies must be added by hand in the console (`expireAt` on `shifts`,
-  `interests`, `urgencyLocks`). Nothing breaks visibly if they are missing;
-  data just accumulates forever.
+  `urgencyLocks`, `dailyLocks`, `handoffCounts`). Nothing breaks visibly if
+  they are missing; data just accumulates forever.

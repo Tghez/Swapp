@@ -1,12 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardTitle, EmptyState } from "@/components/ui/Card";
-import {
-  Button,
-  ButtonLink,
-  ExternalButtonLink,
-} from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import {
   ErrorBanner,
   Spinner,
@@ -17,49 +13,25 @@ import { cn } from "@/lib/cn";
 import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import { formatFullDate } from "@/lib/date/calendar";
 import { parseDateKey } from "@/lib/date/monthWindow";
-import { buildWhatsAppUrl, formatPhoneForDisplay } from "@/lib/whatsapp";
-import {
-  confirmHandoff,
-  deleteShift,
-  markShiftHandedOff,
-  reopenShift,
-} from "@/lib/data/shifts";
-import { declineInterest } from "@/lib/data/interests";
-import {
-  useBrowsableMonths,
-  useInterestInbox,
-  useMyShifts,
-  useNow,
-} from "@/hooks/useShiftData";
+import { deleteShift, markShiftHandedOff, reopenShift } from "@/lib/data/shifts";
+import { useBrowsableMonths, useMyShifts, useNow } from "@/hooks/useShiftData";
 import { useAuth } from "@/components/providers/AuthProvider";
-import type { Interest, Shift } from "@/lib/domain/types";
+import type { Shift } from "@/lib/domain/types";
 
 /**
  * "התורנויות שלי למסירה" (PDR §6.1) — the landing page's sidebar, and the only
  * place in the app that shows it.
  *
- * This is the owner's side of the exchange: what they have posted, who has
- * asked for it, and the actions that close the loop — confirming a taker,
- * marking a shift handed off by hand ("מסרתי"), or deleting a mistaken post
- * outright ("התחרטתי").
+ * This is the owner's side of the exchange: what they have posted, and the
+ * actions that close it out once it's settled over WhatsApp — marking a
+ * shift handed off by hand ("מסרתי"), or deleting a mistaken post outright
+ * ("התחרטתי").
  */
 export function MyShiftsSidebar() {
   const { user } = useAuth();
   const now = useNow();
   const months = useBrowsableMonths(now);
   const { data: shifts, loading, error } = useMyShifts(user?.uid, months);
-  const { data: interests } = useInterestInbox(user?.uid);
-
-  const interestsByShift = useMemo(() => {
-    const grouped = new Map<string, Interest[]>();
-    for (const interest of interests) {
-      if (interest.status === "declined") continue;
-      const bucket = grouped.get(interest.shiftId);
-      if (bucket) bucket.push(interest);
-      else grouped.set(interest.shiftId, [interest]);
-    }
-    return grouped;
-  }, [interests]);
 
   return (
     <Card className="flex flex-col gap-4">
@@ -81,11 +53,7 @@ export function MyShiftsSidebar() {
       ) : (
         <ul className="flex flex-col gap-3">
           {shifts.map((shift) => (
-            <MyShiftCard
-              key={shift.id}
-              shift={shift}
-              interests={interestsByShift.get(shift.id) ?? []}
-            />
+            <MyShiftCard key={shift.id} shift={shift} />
           ))}
         </ul>
       )}
@@ -93,20 +61,13 @@ export function MyShiftsSidebar() {
   );
 }
 
-function MyShiftCard({
-  shift,
-  interests,
-}: {
-  shift: Shift;
-  interests: Interest[];
-}) {
+function MyShiftCard({ shift }: { shift: Shift }) {
   const [confirmingRegret, setConfirmingRegret] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const department = getDepartment(shift.department);
   const handedOff = shift.status === "handedOff";
-  const pending = interests.filter((i) => i.status === "pending");
 
   async function run(action: () => Promise<void>, failure: string) {
     setBusy(true);
@@ -154,41 +115,6 @@ function MyShiftCard({
           )}
         </div>
       </div>
-
-      {handedOff && shift.takenBy && (
-        <p className="mt-2 text-xs text-text/80">
-          נמסרה ל{shift.takenBy.name}
-          {shift.takenBy.phone && (
-            <span dir="ltr"> · {formatPhoneForDisplay(shift.takenBy.phone)}</span>
-          )}
-        </p>
-      )}
-
-      {!handedOff && pending.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2 rounded-md bg-surface/80 p-2">
-          <p className="text-xs font-bold text-text">
-            {pending.length === 1
-              ? "סטאז'ר אחד סימן עניין"
-              : `${pending.length} סטאז'רים סימנו עניין`}
-          </p>
-          {pending.map((interest) => (
-            <InterestRow
-              key={interest.id}
-              interest={interest}
-              disabled={busy}
-              onConfirm={() =>
-                run(
-                  () => confirmHandoff(shift, interest, interests),
-                  "אישור המסירה נכשל",
-                )
-              }
-              onDecline={() =>
-                run(() => declineInterest(interest), "הדחייה נכשלה")
-              }
-            />
-          ))}
-        </div>
-      )}
 
       {error && (
         <p role="alert" className="mt-2 text-xs font-medium text-urgent">
@@ -254,49 +180,5 @@ function MyShiftCard({
           ))}
       </div>
     </li>
-  );
-}
-
-function InterestRow({
-  interest,
-  disabled,
-  onConfirm,
-  onDecline,
-}: {
-  interest: Interest;
-  disabled: boolean;
-  onConfirm: () => void;
-  onDecline: () => void;
-}) {
-  const whatsAppUrl = interest.takerPhone
-    ? buildWhatsAppUrl(
-        interest.takerPhone,
-        `היי ${interest.takerName.split(/\s+/)[0]}, לגבי התורנות ב-Swapp —`,
-      )
-    : null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2 first:border-0 first:pt-0">
-      <span className="min-w-0 flex-1 truncate text-sm text-text">
-        {interest.takerName}
-      </span>
-      {whatsAppUrl && (
-        <ExternalButtonLink href={whatsAppUrl} size="sm" variant="secondary">
-          וואטסאפ
-        </ExternalButtonLink>
-      )}
-      <Button size="sm" disabled={disabled} onClick={onConfirm}>
-        אישור מסירה
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={disabled}
-        onClick={onDecline}
-        aria-label={`דחיית ${interest.takerName}`}
-      >
-        דחייה
-      </Button>
-    </div>
   );
 }

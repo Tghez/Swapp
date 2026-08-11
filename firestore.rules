@@ -74,74 +74,14 @@ service cloud.firestore {
       allow create: if signedIn()
         && incoming().ownerId == uid()
         && validShift(incoming())
-        && incoming().status == 'open'
-        && incoming().takenBy == null
-        && incoming().interestCount == 0;
+        && incoming().status == 'open';
 
-      // The owner controls their own shift, but must not touch the interest
-      // counter — that field is maintained by the people registering interest.
       allow update: if signedIn()
         && resource.data.ownerId == uid()
         && incoming().ownerId == uid()
-        && !changedKeys().hasAny(['interestCount', 'expireAt']);
-
-      /*
-       * A non-owner may do exactly one thing: move interestCount up by one.
-       *
-       * hasOnly() pins which field may change and the equality pins by how
-       * much, so this cannot be used to set the counter to an arbitrary value,
-       * decrement it, or smuggle another field through in the same write.
-       */
-      allow update: if signedIn()
-        && resource.data.ownerId != uid()
-        && changedKeys().hasOnly(['interestCount'])
-        && incoming().interestCount == resource.data.interestCount + 1;
+        && !changedKeys().hasAny(['expireAt']);
 
       allow delete: if signedIn() && resource.data.ownerId == uid();
-    }
-
-    // ------------------------------------------------------------ interests
-
-    match /interests/{interestId} {
-      // Readable by the two people it concerns and nobody else. Queries must
-      // therefore filter on takerId or shiftOwnerId, or Firestore rejects
-      // them outright for being unprovable.
-      allow read: if signedIn()
-        && (resource.data.takerId == uid() || resource.data.shiftOwnerId == uid());
-
-      /*
-       * Registering interest in someone else's shift.
-       *
-       * The id is pinned to shift + taker, which is what makes "one interest
-       * per intern per shift" a database guarantee rather than a UI courtesy:
-       * a second attempt is a create on an existing document, which fails.
-       *
-       * shiftOwnerId is checked against the actual shift rather than trusted
-       * from the payload — otherwise a taker could name someone else as owner
-       * and plant an entry in a stranger's inbox.
-       */
-      allow create: if signedIn()
-        && interestId == incoming().shiftId + '__' + uid()
-        && incoming().takerId == uid()
-        && incoming().status == 'pending'
-        && incoming().takerName is string
-        && incoming().takerPhone is string
-        && incoming().expireAt is timestamp
-        && exists(/databases/$(database)/documents/shifts/$(incoming().shiftId))
-        && get(/databases/$(database)/documents/shifts/$(incoming().shiftId)).data.ownerId
-             == incoming().shiftOwnerId
-        && incoming().shiftOwnerId != uid();
-
-      // Only the shift's owner decides an interest's fate, and only its status.
-      allow update: if signedIn()
-        && resource.data.shiftOwnerId == uid()
-        && changedKeys().hasOnly(['status'])
-        && incoming().status in ['pending', 'confirmed', 'declined'];
-
-      // The taker may withdraw; the owner may clear them out when deleting
-      // the shift they belong to.
-      allow delete: if signedIn()
-        && (resource.data.takerId == uid() || resource.data.shiftOwnerId == uid());
     }
 
     // --------------------------------------------------------- urgencyLocks

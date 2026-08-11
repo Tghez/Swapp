@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDocs,
   increment,
   onSnapshot,
   orderBy,
@@ -24,7 +23,7 @@ import {
   parseDateKey,
   type MonthKey,
 } from "@/lib/date/monthWindow";
-import type { HandoffInput, Interest, Shift } from "@/lib/domain/types";
+import type { HandoffInput, Shift } from "@/lib/domain/types";
 
 function toShift(snapshot: QueryDocumentSnapshot<DocumentData>): Shift {
   return toShiftFromSnapshot(snapshot.id, snapshot.data());
@@ -125,8 +124,6 @@ export async function createShift(
     urgent: input.urgent,
     willingToSwap: input.willingToSwap,
     status: "open",
-    takenBy: null,
-    interestCount: 0,
     createdAt: serverTimestamp(),
     expireAt,
   });
@@ -182,14 +179,12 @@ export async function createShift(
 /**
  * Deletes a shift, which in this app means "I handed it off" (PDR §6.1).
  *
- * Any interests pointing at it go too — Firestore has no cascade, and leaving
- * them would show phantom entries in the owner's inbox until TTL caught up.
  * An urgent shift also releases its lock, so deleting a mistaken post does not
  * cost the intern their דחיפות for the month. The monthly handoff counter is
  * decremented too, so the four-a-month cap tracks shifts still on the books
  * rather than shifts ever posted — a shift marked handed off via
- * {@link confirmHandoff} or {@link markShiftHandedOff} stays counted, since
- * only deletion frees the slot.
+ * {@link markShiftHandedOff} stays counted, since only deletion frees the
+ * slot.
  */
 export async function deleteShift(shift: Shift): Promise<void> {
   const db = getDb();
@@ -202,20 +197,6 @@ export async function deleteShift(shift: Shift): Promise<void> {
     { count: increment(-1) },
   );
 
-  // Constrained by shiftOwnerId as well as shiftId, not because both are
-  // needed to find the documents but because Firestore rejects any query it
-  // cannot prove returns only readable documents. Interests are readable by
-  // the taker or the shift owner, so the owner clause has to be in the query
-  // itself — filtering on shiftId alone comes back permission-denied.
-  const relatedInterests = await getDocs(
-    query(
-      collection(db, COLLECTIONS.interests),
-      where("shiftOwnerId", "==", shift.ownerId),
-      where("shiftId", "==", shift.id),
-    ),
-  );
-  relatedInterests.forEach((snap) => batch.delete(snap.ref));
-
   if (shift.urgent) {
     batch.delete(
       doc(db, COLLECTIONS.urgencyLocks, urgencyLockId(shift.ownerId, shift.monthKey)),
@@ -225,56 +206,20 @@ export async function deleteShift(shift: Shift): Promise<void> {
   await batch.commit();
 }
 
-/**
- * The owner picks one of the interested interns. The chosen interest is
- * confirmed, the rest are declined so they stop showing as open in the inbox,
- * and the shift is marked handed off — atomically, so the board can never show
- * a shift as taken by someone whose interest was not recorded.
- */
-export async function confirmHandoff(
-  shift: Shift,
-  chosen: Interest,
-  allInterests: readonly Interest[],
-): Promise<void> {
-  const db = getDb();
-  const batch = writeBatch(db);
-
-  batch.update(doc(db, COLLECTIONS.shifts, shift.id), {
-    status: "handedOff",
-    takenBy: {
-      uid: chosen.takerId,
-      name: chosen.takerName,
-      phone: chosen.takerPhone,
-    },
-  });
-
-  for (const candidate of allInterests) {
-    if (candidate.shiftId !== shift.id) continue;
-    batch.update(doc(db, COLLECTIONS.interests, candidate.id), {
-      status: candidate.id === chosen.id ? "confirmed" : "declined",
-    });
-  }
-
-  await batch.commit();
-}
-
 /** Puts a handed-off shift back on the board. */
 export async function reopenShift(shift: Shift): Promise<void> {
   await updateDoc(doc(getDb(), COLLECTIONS.shifts, shift.id), {
     status: "open",
-    takenBy: null,
   });
 }
 
 /**
- * The owner marks a shift as handed off without going through the
- * confirm-an-applicant flow — e.g. it was settled outside the app. Unlike
- * {@link deleteShift}, the shift stays in the calendar (struck through and
- * marked, see `ShiftChip`) instead of disappearing everywhere.
+ * The owner marks a shift as handed off, settled outside the app (WhatsApp).
+ * Unlike {@link deleteShift}, the shift stays in the calendar (struck through
+ * and marked, see `ShiftChip`) instead of disappearing everywhere.
  */
 export async function markShiftHandedOff(shift: Shift): Promise<void> {
   await updateDoc(doc(getDb(), COLLECTIONS.shifts, shift.id), {
     status: "handedOff",
-    takenBy: null,
   });
 }

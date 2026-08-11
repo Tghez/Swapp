@@ -28,7 +28,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const ALICE = "alice-uid";
 const BOB = "bob-uid";
-const CAROL = "carol-uid";
 
 let testEnv: RulesTestEnvironment;
 
@@ -48,8 +47,6 @@ function shiftDoc(ownerId: string, overrides: Record<string, unknown> = {}) {
     urgent: false,
     willingToSwap: false,
     status: "open",
-    takenBy: null,
-    interestCount: 0,
     createdAt: serverTimestamp(),
     expireAt: EXPIRE_AT,
     ...overrides,
@@ -142,7 +139,6 @@ describe("shift ownership", () => {
     await assertSucceeds(
       updateDoc(doc(db(ALICE), "shifts", "shift-1"), {
         status: "handedOff",
-        takenBy: { uid: BOB, name: "נועה", phone: "972521234567" },
       }),
     );
   });
@@ -159,156 +155,6 @@ describe("shift ownership", () => {
 
   it("lets the owner delete their own shift", async () => {
     await assertSucceeds(deleteDoc(doc(db(ALICE), "shifts", "shift-1")));
-  });
-});
-
-describe("the interest counter", () => {
-  it("lets a non-owner increment it by exactly one", async () => {
-    await assertSucceeds(
-      updateDoc(doc(db(BOB), "shifts", "shift-1"), { interestCount: 1 }),
-    );
-  });
-
-  it("refuses an arbitrary jump", async () => {
-    await assertFails(
-      updateDoc(doc(db(BOB), "shifts", "shift-1"), { interestCount: 50 }),
-    );
-  });
-
-  it("refuses a decrement", async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const raw = context.firestore() as unknown as Firestore;
-      await updateDoc(doc(raw, "shifts", "shift-1"), { interestCount: 5 });
-    });
-    await assertFails(
-      updateDoc(doc(db(BOB), "shifts", "shift-1"), { interestCount: 4 }),
-    );
-  });
-
-  it("refuses another field smuggled alongside the increment", async () => {
-    await assertFails(
-      updateDoc(doc(db(BOB), "shifts", "shift-1"), {
-        interestCount: 1,
-        ownerPhone: "972500000000",
-      }),
-    );
-  });
-
-  it("stops the owner inflating their own shift's count", async () => {
-    await assertFails(
-      updateDoc(doc(db(ALICE), "shifts", "shift-1"), { interestCount: 9 }),
-    );
-  });
-});
-
-describe("interests", () => {
-  const interestId = `shift-1__${BOB}`;
-
-  function interestDoc(overrides: Record<string, unknown> = {}) {
-    return {
-      shiftId: "shift-1",
-      shiftOwnerId: ALICE,
-      takerId: BOB,
-      takerName: "נועה לוי",
-      takerPhone: "972521234567",
-      status: "pending",
-      createdAt: serverTimestamp(),
-      expireAt: EXPIRE_AT,
-      ...overrides,
-    };
-  }
-
-  it("lets an intern register interest in someone else's shift", async () => {
-    await assertSucceeds(
-      setDoc(doc(db(BOB), "interests", interestId), interestDoc()),
-    );
-  });
-
-  it("refuses an id that does not match the shift and taker", async () => {
-    await assertFails(
-      setDoc(doc(db(BOB), "interests", "made-up-id"), interestDoc()),
-    );
-  });
-
-  it("refuses registering interest on your own shift", async () => {
-    await assertFails(
-      setDoc(
-        doc(db(ALICE), "interests", `shift-1__${ALICE}`),
-        interestDoc({ takerId: ALICE }),
-      ),
-    );
-  });
-
-  it("refuses a forged owner id, which would plant it in a stranger's inbox", async () => {
-    await assertFails(
-      setDoc(
-        doc(db(BOB), "interests", interestId),
-        interestDoc({ shiftOwnerId: CAROL }),
-      ),
-    );
-  });
-
-  it("refuses interest in a shift that does not exist", async () => {
-    await assertFails(
-      setDoc(
-        doc(db(BOB), "interests", `ghost__${BOB}`),
-        interestDoc({ shiftId: "ghost" }),
-      ),
-    );
-  });
-
-  it("refuses an interest that arrives pre-confirmed", async () => {
-    await assertFails(
-      setDoc(
-        doc(db(BOB), "interests", interestId),
-        interestDoc({ status: "confirmed" }),
-      ),
-    );
-  });
-
-  describe("visibility", () => {
-    beforeEach(async () => {
-      await testEnv.withSecurityRulesDisabled(async (context) => {
-        const raw = context.firestore() as unknown as Firestore;
-        await setDoc(doc(raw, "interests", interestId), interestDoc());
-      });
-    });
-
-    it("is readable by the taker", async () => {
-      await assertSucceeds(getDoc(doc(db(BOB), "interests", interestId)));
-    });
-
-    it("is readable by the shift owner", async () => {
-      await assertSucceeds(getDoc(doc(db(ALICE), "interests", interestId)));
-    });
-
-    it("is invisible to everyone else", async () => {
-      await assertFails(getDoc(doc(db(CAROL), "interests", interestId)));
-    });
-
-    it("lets the shift owner confirm it", async () => {
-      await assertSucceeds(
-        updateDoc(doc(db(ALICE), "interests", interestId), {
-          status: "confirmed",
-        }),
-      );
-    });
-
-    it("stops the taker confirming their own interest", async () => {
-      await assertFails(
-        updateDoc(doc(db(BOB), "interests", interestId), {
-          status: "confirmed",
-        }),
-      );
-    });
-
-    it("stops the owner rewriting the taker's details", async () => {
-      await assertFails(
-        updateDoc(doc(db(ALICE), "interests", interestId), {
-          takerPhone: "972500000000",
-        }),
-      );
-    });
   });
 });
 
@@ -469,8 +315,7 @@ describe("the four-a-month posting limit", () => {
   }
 
   // The create rule only allows a counter to start at 1, so a seed above
-  // that has to bypass rules — the same way the interest-counter tests seed
-  // a starting count.
+  // that has to bypass rules.
   async function seedCount(count: number) {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const raw = context.firestore() as unknown as Firestore;

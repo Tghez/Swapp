@@ -2,12 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { subscribeToMonthShifts, subscribeToMyShifts } from "@/lib/data/shifts";
-import {
-  subscribeToInterestInbox,
-  subscribeToMyInterests,
-} from "@/lib/data/interests";
 import { getBrowsableMonths, type MonthKey } from "@/lib/date/monthWindow";
-import type { Interest, Shift } from "@/lib/domain/types";
+import type { Shift } from "@/lib/domain/types";
 
 /**
  * A single clock for the whole session.
@@ -43,9 +39,8 @@ interface Entry<T> {
   error: string | null;
 }
 
-/** Stable identities — a fresh [] each render would break downstream memos. */
+/** Stable identity — a fresh [] each render would break downstream memos. */
 const NO_SHIFTS: readonly Shift[] = [];
-const NO_INTERESTS: readonly Interest[] = [];
 
 function derive<T>(
   entry: Entry<T> | null,
@@ -109,44 +104,4 @@ export function useMyShifts(
   }, [uid, monthsKey, key]);
 
   return derive(entry, key, NO_SHIFTS);
-}
-
-/** Interns who have registered interest in the signed-in intern's shifts. */
-export function useInterestInbox(
-  uid: string | undefined,
-): Subscription<readonly Interest[]> {
-  const [entry, setEntry] = useState<Entry<readonly Interest[]> | null>(null);
-  const key = uid ?? null;
-
-  useEffect(() => {
-    if (!key) return;
-    return subscribeToInterestInbox(
-      key,
-      (interests) => setEntry({ key, data: interests, error: null }),
-      (error) =>
-        setEntry({ key, data: NO_INTERESTS, error: messageFor(error) }),
-    );
-  }, [key]);
-
-  return derive(entry, key, NO_INTERESTS);
-}
-
-/** Shifts the signed-in intern has already registered interest in. */
-export function useMyInterests(
-  uid: string | undefined,
-): Subscription<readonly Interest[]> {
-  const [entry, setEntry] = useState<Entry<readonly Interest[]> | null>(null);
-  const key = uid ?? null;
-
-  useEffect(() => {
-    if (!key) return;
-    return subscribeToMyInterests(
-      key,
-      (interests) => setEntry({ key, data: interests, error: null }),
-      (error) =>
-        setEntry({ key, data: NO_INTERESTS, error: messageFor(error) }),
-    );
-  }, [key]);
-
-  return derive(entry, key, NO_INTERESTS);
 }

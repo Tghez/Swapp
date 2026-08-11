@@ -3,8 +3,9 @@
 מסירה ולקיחה של תורנויות בין סטאז'רים.
 
 A סטאז'ר posts a תורנות they need to hand off; others browse a month calendar of
-what is available, register interest, and the two settle it over WhatsApp.
-Hebrew, RTL, mobile-first, installable to a home screen.
+what is available and open WhatsApp straight from a shift to settle it
+directly with whoever posted it. Hebrew, RTL, mobile-first, installable to a
+home screen.
 
 ## Stack
 
@@ -49,7 +50,7 @@ are missing, rather than failing with an opaque Firebase error.
    domains: add `localhost` and the Vercel domain. Sign-in fails without this.
 4. **Deploy rules and indexes**: `npm run deploy:rules`.
 5. **Turn on TTL** — Firestore → Time-to-live. Add a policy on the `expireAt`
-   field for each of `shifts`, `interests`, and `urgencyLocks`.
+   field for each of `shifts`, `urgencyLocks`, `dailyLocks`, and `handoffCounts`.
 
 Step 5 is what implements the monthly cleanup, and it is easy to forget — no
 TTL policy means nothing is ever deleted. Nothing visibly breaks, so check it.
@@ -78,14 +79,8 @@ a forged request from devtools is evaluated by exactly those rules.
 
 - Any signed-in intern can read the shift board.
 - An intern can only create a shift under their own `ownerId`, and only they
-  can edit or delete it.
-- A non-owner may change exactly one field on someone else's shift —
-  `interestCount`, and only by exactly +1. Not to an arbitrary value, not
-  downwards, and not alongside any other field.
-- An interest document's id is `{shiftId}__{takerId}`, which makes "one
-  interest per intern per shift" a database guarantee. Its `shiftOwnerId` is
-  verified against the actual shift, so nobody can plant an entry in a
-  stranger's inbox.
+  can edit or delete it. Nobody else may write to a shift at all — taking one
+  happens entirely over WhatsApp, outside the app.
 - Profiles are private to their owner. The board never needs to read them
   because owner contact details are denormalised onto each shift.
 

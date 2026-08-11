@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button, ExternalButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Card";
-import { ErrorBanner, SwapBadge, UrgentBadge } from "@/components/ui/Feedback";
+import { SwapBadge, UrgentBadge } from "@/components/ui/Feedback";
 import { formatFullDate } from "@/lib/date/calendar";
 import {
   DEPARTMENTS,
@@ -25,38 +24,17 @@ interface DayDetailModalProps {
   date: Date | null;
   shifts: readonly Shift[];
   currentUid: string;
-  interestedShiftIds: ReadonlySet<string>;
-  onRegisterInterest: (shift: Shift) => Promise<void>;
   onClose: () => void;
 }
 
-/**
- * Full detail for one day (PDR §6.3). Selecting a shift both registers
- * interest and opens WhatsApp with the intern who posted it.
- */
+/** Full detail for one day (PDR §6.3). Selecting a shift opens WhatsApp with the intern who posted it. */
 export function DayDetailModal({
   date,
   shifts,
   currentUid,
-  interestedShiftIds,
-  onRegisterInterest,
   onClose,
 }: DayDetailModalProps) {
-  const [error, setError] = useState<string | null>(null);
   const dateLabel = date ? formatFullDate(date) : "";
-
-  async function handleRegisterInterest(shift: Shift) {
-    setError(null);
-    try {
-      await onRegisterInterest(shift);
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "לא הצלחנו לסמן עניין. יש לנסות שוב.",
-      );
-    }
-  }
 
   function renderShift(shift: Shift) {
     return (
@@ -64,9 +42,7 @@ export function DayDetailModal({
         key={shift.id}
         shift={shift}
         isOwn={shift.ownerId === currentUid}
-        alreadyInterested={interestedShiftIds.has(shift.id)}
         dateLabel={dateLabel}
-        onRegisterInterest={() => handleRegisterInterest(shift)}
       />
     );
   }
@@ -77,12 +53,6 @@ export function DayDetailModal({
 
   return (
     <Modal open={date !== null} title={dateLabel} onClose={onClose}>
-      {error && (
-        <div className="mb-4">
-          <ErrorBanner>{error}</ErrorBanner>
-        </div>
-      )}
-
       {shifts.length === 0 ? (
         <EmptyState>אין תורנויות ביום הזה</EmptyState>
       ) : groups ? (
@@ -139,18 +109,10 @@ function groupByDepartment(shifts: readonly Shift[]): DepartmentGroup[] {
 interface ShiftDetailProps {
   shift: Shift;
   isOwn: boolean;
-  alreadyInterested: boolean;
   dateLabel: string;
-  onRegisterInterest: () => void;
 }
 
-function ShiftDetail({
-  shift,
-  isOwn,
-  alreadyInterested,
-  dateLabel,
-  onRegisterInterest,
-}: ShiftDetailProps) {
+function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
   const department = getDepartment(shift.department);
   const location = formatLocation(shift.department, shift.internalUnit);
   const handedOff = shift.status === "handedOff";
@@ -200,12 +162,6 @@ function ShiftDetail({
             <dd>{shift.note}</dd>
           </div>
         )}
-        {shift.interestCount > 0 && (
-          <div className="flex gap-2">
-            <dt className="font-semibold">מתעניינים:</dt>
-            <dd>{shift.interestCount}</dd>
-          </div>
-        )}
       </dl>
 
       <div className="mt-3">
@@ -219,27 +175,12 @@ function ShiftDetail({
           </p>
         ) : whatsAppUrl ? (
           <>
-            {/*
-              A real anchor, not window.open after an await: Safari blocks a
-              popup opened once the click's user gesture has been consumed by
-              an async call. The interest write is fired alongside the
-              navigation rather than before it.
-            */}
-            <ExternalButtonLink
-              href={whatsAppUrl}
-              // Registering is once-and-done. Firing it again on a follow-up
-              // visit would hit the "already interested" guard and show an
-              // error for what is really just reopening the conversation.
-              onClick={alreadyInterested ? undefined : onRegisterInterest}
-              className="w-full"
-            >
+            <ExternalButtonLink href={whatsAppUrl} className="w-full">
               <WhatsAppMark />
-              {alreadyInterested ? "המשך שיחה בוואטסאפ" : "אני רוצה את התורנות"}
+              אני רוצה את התורנות
             </ExternalButtonLink>
             <p className="mt-2 text-center text-xs text-muted">
-              {alreadyInterested
-                ? "כבר סימנת עניין בתורנות הזו"
-                : "ייפתח וואטסאפ, והמוסר/ת יראה שסימנת עניין"}
+              ייפתח וואטסאפ עם מי שפרסם את התורנות
             </p>
           </>
         ) : (
