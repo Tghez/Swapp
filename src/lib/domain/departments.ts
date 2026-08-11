@@ -44,7 +44,7 @@ export const DEPARTMENTS: readonly Department[] = [
   {
     id: "pnimit",
     label: "פנימית",
-    shortLabel: "פני.",
+    shortLabel: "פנימית",
     hasUnits: true,
     chipClass: "bg-dept-pnimit-soft border-dept-pnimit",
     dotClass: "bg-dept-pnimit",
