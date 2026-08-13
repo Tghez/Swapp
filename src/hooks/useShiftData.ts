@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { subscribeToMonthShifts, subscribeToMyShifts } from "@/lib/data/shifts";
-import { getBrowsableMonths, type MonthKey } from "@/lib/date/monthWindow";
-import type { Shift } from "@/lib/domain/types";
+import { subscribeToQuota } from "@/lib/data/quotas";
+import { dateKeyOf, getBrowsableMonths, type MonthKey } from "@/lib/date/monthWindow";
+import type { Quota, Shift } from "@/lib/domain/types";
 
 /**
  * A single clock for the whole session.
@@ -11,9 +12,33 @@ import type { Shift } from "@/lib/domain/types";
  * Every month-window decision has to agree — the sidebar, the board's month
  * tabs and the handoff date bounds must not disagree because they each called
  * `new Date()` a few milliseconds apart across midnight on the 15th.
+ *
+ * Ticks on a timer and on tab visibility, rather than being computed once at
+ * mount: a PWA left open across midnight or across the 15th (when next month
+ * opens up) would otherwise keep every month-window decision frozen at
+ * whatever moment the tab first loaded. The dedupe against the current value
+ * means most ticks are no-ops — nothing re-renders unless the day actually
+ * changed.
  */
 export function useNow(): Date {
-  return useMemo(() => new Date(), []);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const tick = () => {
+      setNow((current) => {
+        const next = new Date();
+        return dateKeyOf(next) === dateKeyOf(current) ? current : next;
+      });
+    };
+    const interval = setInterval(tick, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
+  return now;
 }
 
 export function useBrowsableMonths(now: Date): MonthKey[] {
@@ -104,4 +129,32 @@ export function useMyShifts(
   }, [uid, monthsKey, key]);
 
   return derive(entry, key, NO_SHIFTS);
+}
+
+/**
+ * The signed-in intern's posting quota for one month — the live source of
+ * truth the handoff form blocks its submit button on, instead of deriving
+ * the same limits by scanning `myShifts` (which depends on a month window
+ * that can go stale in a long-lived tab). `monthKey` is `null` until a date
+ * is picked, so there is nothing to check yet.
+ */
+export function useQuota(
+  uid: string | undefined,
+  monthKey: MonthKey | null,
+): Subscription<Quota | null> {
+  const [entry, setEntry] = useState<Entry<Quota | null> | null>(null);
+
+  const key = uid && monthKey ? `${uid}|${monthKey}` : null;
+
+  useEffect(() => {
+    if (!uid || !monthKey || key === null) return;
+    return subscribeToQuota(
+      uid,
+      monthKey,
+      (quota) => setEntry({ key, data: quota, error: null }),
+      (error) => setEntry({ key, data: null, error: messageFor(error) }),
+    );
+  }, [uid, monthKey, key]);
+
+  return derive(entry, key, null);
 }

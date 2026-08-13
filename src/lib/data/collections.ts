@@ -6,28 +6,18 @@
 export const COLLECTIONS = {
   users: "users",
   shifts: "shifts",
-  urgencyLocks: "urgencyLocks",
-  dailyLocks: "dailyLocks",
-  handoffCounts: "handoffCounts",
+  quotas: "quotas",
 } as const;
 
 /**
- * Composite ids are how uniqueness gets enforced without a server. Firestore
- * `create` fails if the document already exists, so a deterministic id turns
- * "at most one of these" into a rule the database enforces for free.
+ * One doc per intern per month, tracking every posting limit at once: the
+ * dates already claimed (at most one shift per date, and its key count is the
+ * four-a-month cap) and the one urgent shift the month may have. Composite ids
+ * are how uniqueness gets enforced without a server — Firestore's `create`
+ * fails if the document already exists, and its map-diff rules pin how the
+ * doc may change on `update` — turning "at most one/four of these" into
+ * something the database enforces for free.
  */
-
-/** One דחיפות flag per intern per month (PDR §6.2). */
-export function urgencyLockId(uid: string, monthKey: string): string {
-  return `${uid}__${monthKey}`;
-}
-
-/** At most one shift per intern per date — keyed by the shift's own date, not the day it's posted. */
-export function dailyLockId(uid: string, date: string): string {
-  return `${uid}__${date}`;
-}
-
-/** Running total of shifts posted per intern per month, capped at 4. */
-export function handoffCountId(uid: string, monthKey: string): string {
+export function quotaId(uid: string, monthKey: string): string {
   return `${uid}__${monthKey}`;
 }

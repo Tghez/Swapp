@@ -7,6 +7,14 @@ import { isValidIsraeliPhone, normalizeIsraeliPhone } from "@/lib/whatsapp";
 export const NOTE_MAX_WORDS = 15;
 
 /**
+ * Max bytes in the note, mirroring `firestore.rules`' `note.size() <= 300` —
+ * Firestore's `size()` on a string counts UTF-8 bytes, not JS `.length`
+ * (UTF-16 code units), so a run of Hebrew text or a single long unspaced word
+ * can pass the word-count check above and still exceed this independently.
+ */
+export const NOTE_MAX_BYTES = 300;
+
+/**
  * Counts words in a way that behaves for Hebrew: split on whitespace, ignore
  * empties. Punctuation attached to a word does not make it two words, and
  * runs of spaces or newlines do not inflate the count.
@@ -15,6 +23,11 @@ export function countWords(text: string): number {
   const trimmed = text.trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
+}
+
+/** UTF-8 byte length, matching Firestore rules' `string.size()`. */
+export function noteByteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
 }
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,6 +60,7 @@ const noteSchema = z
     (value) => countWords(value) <= NOTE_MAX_WORDS,
     `עד ${NOTE_MAX_WORDS} מילים`,
   )
+  .refine((value) => noteByteLength(value) <= NOTE_MAX_BYTES, "ההערה ארוכה מדי")
   .transform((value) => (value === "" ? null : value));
 
 export const profileSchema = z.object({

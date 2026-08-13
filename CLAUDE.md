@@ -29,11 +29,11 @@ is the template and is committed.
 
 ```bash
 npm run dev            # dev server
-npm test               # 60 unit tests, pure logic, no emulator
+npm test               # 67 unit tests, pure logic, no emulator
 npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm run emulators      # pinned to firebase-tools@13 — see note below
-npm run test:rules     # 40 rules tests, needs emulators running first
+npm run test:rules     # 32 rules tests, needs emulators running first
 npm run deploy:rules   # push firestore.rules + indexes
 ```
 
@@ -65,9 +65,8 @@ users/{uid}                     displayName, phone, email, updatedAt
 shifts/{auto}                   ownerId + denormalised owner contact, date,
                                 monthKey, department, internalUnit, note,
                                 urgent, status, expireAt
-urgencyLocks/{uid}__{YYYY-MM}   uid, monthKey, shiftId, expireAt
-dailyLocks/{uid}__{date}        uid, date, monthKey, shiftId, expireAt
-handoffCounts/{uid}__{YYYY-MM}  uid, monthKey, count (capped at 4), expireAt
+quotas/{uid}__{YYYY-MM}         uid, monthKey, dates (map<date,true>),
+                                urgentShiftId (string|null), expireAt
 ```
 
 One deliberate choice worth not "fixing":
@@ -84,24 +83,28 @@ One deliberate choice worth not "fixing":
    these to auto-ids with a client-side check.
 
 2. **דחיפות is enforced server-side.** An urgent shift is written in the same
-   batch as `urgencyLocks/{uid}__{monthKey}`. Rules allow `create` there but
-   never `update`, so a second urgent shift in a month hits an existing doc and
-   the atomic batch dies with it. The lock is keyed by the **shift's** month,
-   not the posting month — that is what lets `deleteShift` release it.
+   batch as an update to `quotas/{uid}__{monthKey}` that moves its
+   `urgentShiftId` field from `null` to the shift's id. Rules only allow that
+   transition (or the reverse, on release) — never one value to a different
+   one — so a second urgent shift in a month hits a doc whose `urgentShiftId`
+   is already set and the atomic batch dies with it. The doc is keyed by the
+   **shift's** month, not the posting month — that is what lets `deleteShift`
+   release it.
 
 3. **An intern may hold at most one shift per date and 4 a month, counting
    shifts still on the books.** The daily limit is per **shift date**, not per
    day of posting — an intern can post several shifts in one sitting as long
-   as no two land on the same date. `createShift` writes
-   `dailyLocks/{uid}__{date}` (create-only, same trick as urgencyLocks, keyed
-   on the shift's own date) and increments
-   `handoffCounts/{uid}__{monthKey}.count` (rules cap it at 4 and pin the step
-   to exactly ±1) in the same batch as the shift. `deleteShift` releases both
-   the monthly counter and the daily lock, so the cap and the per-date limit
-   track shifts currently posted rather than shifts ever posted — a shift
-   marked handed off via `markShiftHandedOff` stays on the books (and
-   counted) since only deletion frees the slot, and deleting a shift lets the
-   intern immediately re-post on that same date.
+   as no two land on the same date. Both limits live on the same
+   `quotas/{uid}__{monthKey}` doc: `createShift` claims the shift's date as a
+   key in its `dates` map (re-claiming an already-claimed date is a no-op
+   change the rules reject, enforcing the daily limit) in the same batch as
+   the shift; the four-a-month cap needs no separate counter, since one shift
+   always claims exactly one date, so `dates.size()` *is* the count, capped
+   at 4 by the rules. `deleteShift` removes the date key again, so the cap and
+   the per-date limit track shifts currently posted rather than shifts ever
+   posted — a shift marked handed off via `markShiftHandedOff` stays on the
+   books (and counted) since only deletion frees the slot, and deleting a
+   shift lets the intern immediately re-post on that same date.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.
@@ -164,6 +167,6 @@ One deliberate choice worth not "fixing":
 - Taking a shift opens WhatsApp directly — there is no in-app record of who
   is interested or who ends up taking it. The owner manages that entirely
   outside the app and marks it handed off by hand ("מסרתי") once settled.
-- TTL policies must be added by hand in the console (`expireAt` on `shifts`,
-  `urgencyLocks`, `dailyLocks`, `handoffCounts`). Nothing breaks visibly if
-  they are missing; data just accumulates forever.
+- TTL policies must be added by hand in the console (`expireAt` on `shifts`
+  and `quotas`). Nothing breaks visibly if they are missing; data just
+  accumulates forever.

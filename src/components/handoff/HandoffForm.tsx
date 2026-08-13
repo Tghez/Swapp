@@ -18,8 +18,11 @@ import { DEPARTMENTS, PNIMIT_UNITS } from "@/lib/domain/departments";
 import {
   countWords,
   createHandoffSchema,
+  NOTE_MAX_BYTES,
   NOTE_MAX_WORDS,
+  noteByteLength,
 } from "@/lib/domain/schemas";
+import { evaluateQuota } from "@/lib/domain/quota";
 import {
   dateKeyOf,
   getSelectableRange,
@@ -27,7 +30,7 @@ import {
   parseDateKey,
 } from "@/lib/date/monthWindow";
 import { createShift } from "@/lib/data/shifts";
-import { useMyShifts, useBrowsableMonths, useNow } from "@/hooks/useShiftData";
+import { useNow, useQuota } from "@/hooks/useShiftData";
 
 interface FormState {
   displayName: string;
@@ -57,8 +60,6 @@ export function HandoffForm() {
   const router = useRouter();
   const { user, profile } = useAuth();
   const now = useNow();
-  const months = useBrowsableMonths(now);
-  const { data: myShifts } = useMyShifts(user?.uid, months);
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,52 +99,43 @@ export function HandoffForm() {
   const selectedDepartment = DEPARTMENTS.find((d) => d.id === values.department);
   const showUnitPicker = selectedDepartment?.hasUnits ?? false;
 
-  /**
-   * דחיפות is limited to one shift per month. The month that counts is the one
-   * the shift falls in, so the checkbox only locks once a date is picked.
-   */
   const targetMonthKey = values.date
     ? monthKeyOf(parseDateKey(values.date))
     : null;
-  const urgencyTaken = targetMonthKey
-    ? myShifts.some((s) => s.urgent && s.monthKey === targetMonthKey)
-    : false;
 
   /**
-   * At most one shift per date and four a month, mirrored client-side from
-   * `myShifts` for an honest hint — the server (via dailyLocks and
-   * handoffCounts) is what actually enforces it. The two agree for the
-   * monthly cap: deleting a shift both drops it from `myShifts` and
-   * decrements `handoffCounts`. They diverge for the daily lock, which is
-   * never released — a deleted shift frees its date here client-side even
-   * though the server still holds it, so a genuine conflict there only
-   * surfaces once the server rejects the post.
+   * The live pre-check: one small doc per intern per month covers all three
+   * posting limits at once (`firestore.rules`' `quotas/{uid}__{monthKey}`),
+   * so this subscription is the single source of truth the submit button is
+   * gated on — no more deriving limits by scanning `myShifts`, which could
+   * go stale in a long-lived tab (a frozen "now" would leave the month
+   * window it filters against frozen too).
    *
-   * Suppressed while `submitting`: the moment a post succeeds, the realtime
-   * `myShifts` subscription picks up the shift just created — before
-   * `router.push` has navigated away — which would otherwise flash this
-   * error for the shift the intern is in the middle of successfully posting.
+   * Suppressed while `submitting`: the moment a post succeeds, this same
+   * subscription picks up the just-written quota — before `router.push` has
+   * navigated away — which would otherwise flash a false "limit reached" for
+   * the shift the intern is in the middle of successfully posting.
    * `submitting` only clears on failure, so a genuine conflict still shows
    * before the next attempt.
    */
-  const dailyLimitReached =
-    !submitting && values.date
-      ? myShifts.some((s) => s.date === values.date)
-      : false;
-  const monthlyLimitReached =
-    !submitting && targetMonthKey
-      ? myShifts.filter((s) => s.monthKey === targetMonthKey).length >= 4
-      : false;
+  const { data: quota, loading: quotaLoading } = useQuota(user?.uid, targetMonthKey);
+  const evaluation =
+    !submitting && values.date ? evaluateQuota(quota, values.date) : null;
+  const dailyBlocked = evaluation?.dailyBlocked ?? false;
+  const monthlyBlocked = evaluation?.monthlyBlocked ?? false;
+  const urgentBlocked = evaluation?.urgentBlocked ?? false;
 
   // Derived, not corrected after the fact: ticking the box and then moving to
   // a date whose month is already spent must not submit an urgent flag the
   // server would reject.
-  const urgent = values.urgent && !urgencyTaken;
+  const urgent = values.urgent && !urgentBlocked;
 
   const noteWords = countWords(values.note);
+  const noteBytes = noteByteLength(values.note);
+  const noteTooLong = noteBytes > NOTE_MAX_BYTES;
 
   // A one-off nudge, not a permanent hint: appears right after the intern
-  // checks the box, then fades on its own — the disabled/urgencyTaken states
+  // checks the box, then fades on its own — the disabled/urgentBlocked states
   // already explain themselves via the hint text below.
   function handleUrgentChange(checked: boolean) {
     update("urgent", checked);
@@ -169,11 +161,11 @@ export function HandoffForm() {
 
     setSubmitError(null);
 
-    if (dailyLimitReached) {
+    if (dailyBlocked) {
       setErrors({ date: "כבר פרסמת תורנות בתאריך הזה" });
       return;
     }
-    if (monthlyLimitReached) {
+    if (monthlyBlocked) {
       setErrors({ date: "פרסמת כבר 4 תורנויות החודש — זו המכסה" });
       return;
     }
@@ -205,17 +197,12 @@ export function HandoffForm() {
     try {
       await createShift(user.uid, parsed.data);
       router.push("/?posted=1");
-    } catch (caught) {
-      // A denied write here means one of the server-enforced limits kicked
-      // in: the urgency lock, the daily lock, or the monthly handoff cap.
-      // The client-side hints above cover the common cases, so this is the
-      // fallback for whatever they missed (e.g. state that changed in
-      // another tab).
-      const message =
-        caught instanceof Error && caught.message.includes("permission")
-          ? "לא ניתן לפרסם. ייתכן שהגעת למכסה החודשית, כבר פרסמת תורנות היום, או שכבר סימנת דחיפות לחודש הזה."
-          : "הפרסום נכשל. יש לנסות שוב.";
-      setSubmitError(message);
+    } catch {
+      // Every rule this form knows about is pre-checked live above, so
+      // reaching the server and still being denied means something the
+      // pre-check couldn't have caught (a genuine last-moment race, a
+      // dropped connection) — no point guessing which.
+      setSubmitError("הפרסום נכשל. יש לנסות שוב.");
       setSubmitting(false);
     }
   }
@@ -263,20 +250,22 @@ export function HandoffForm() {
           onChange={(value) => update("date", value)}
           error={
             errors.date ||
-            (dailyLimitReached
+            (dailyBlocked
               ? "כבר פרסמת תורנות בתאריך הזה"
-              : monthlyLimitReached
+              : monthlyBlocked
                 ? "פרסמת כבר 4 תורנויות החודש — זו המכסה"
                 : undefined)
           }
           min={dateKeyOf(range.min)}
           max={dateKeyOf(range.max)}
           hint={
-            dailyLimitReached || monthlyLimitReached
+            dailyBlocked || monthlyBlocked
               ? undefined
-              : now.getDate() >= 15
-                ? "ניתן לפרסם תורנויות עד סוף החודש הבא"
-                : "ניתן לפרסם תורנויות עד סוף החודש. מה-15 ייפתח גם החודש הבא"
+              : quotaLoading
+                ? "בודק זמינות…"
+                : now.getDate() >= 15
+                  ? "ניתן לפרסם תורנויות עד סוף החודש הבא"
+                  : "ניתן לפרסם תורנויות עד סוף החודש. מה-15 ייפתח גם החודש הבא"
           }
         />
 
@@ -309,7 +298,7 @@ export function HandoffForm() {
           label="משהו להוסיף"
           value={values.note}
           onChange={(value) => update("note", value)}
-          error={errors.note}
+          error={errors.note || (noteTooLong ? "ההערה ארוכה מדי" : undefined)}
           placeholder="לא חובה"
           hint={
             <span className={noteWords > NOTE_MAX_WORDS ? "text-urgent" : ""}>
@@ -334,12 +323,12 @@ export function HandoffForm() {
           <CheckboxField
             label="דחוף לי למסור"
             checked={urgent}
-            disabled={urgencyTaken || !values.date}
+            disabled={urgentBlocked || !values.date}
             onChange={handleUrgentChange}
             hint={
               !values.date
                 ? "יש לבחור תאריך תחילה"
-                : urgencyTaken
+                : urgentBlocked
                   ? "כבר סימנת תורנות דחופה לחודש הזה"
                   : undefined
             }
@@ -360,7 +349,14 @@ export function HandoffForm() {
       <Button
         type="submit"
         size="lg"
-        disabled={submitting || dailyLimitReached || monthlyLimitReached}
+        disabled={
+          submitting ||
+          quotaLoading ||
+          dailyBlocked ||
+          monthlyBlocked ||
+          noteWords > NOTE_MAX_WORDS ||
+          noteTooLong
+        }
       >
         {submitting && (
           <Spinner className="size-5 border-primary-fg/30 border-t-primary-fg" />

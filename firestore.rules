@@ -84,88 +84,73 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerId == uid();
     }
 
-    // --------------------------------------------------------- urgencyLocks
+    // ----------------------------------------------------------- quotas
 
     /*
-     * This is what makes "דחיפות once per month" real (an upgrade on PDR §9.3,
-     * which assumed a client-side check).
+     * One doc per intern per month covers every posting limit at once (an
+     * upgrade on PDR §9.3, which assumed a client-side check): `dates` is a
+     * map with one key per date the intern currently holds a shift on, and
+     * `urgentShiftId` is that month's one urgent shift, or null.
      *
-     * The lock's id is derived from the intern and the month, and it is written
-     * in the same batch as the urgent shift. Because a batch is atomic and
-     * there is no update rule here, a second urgent shift in the same month
-     * hits an existing document — evaluated as an update, denied — and takes
-     * the whole batch down with it. No Cloud Function, no billing account.
+     * "At most one shift per date": claiming an already-claimed date leaves
+     * `dates` byte-identical (true -> true is not a change), so neither the
+     * "claim" nor the "release" branch below is satisfied and the update is
+     * denied, taking the whole batch (and the shift write) down with it.
+     *
+     * "At most four shifts per month, counting shifts still on the books":
+     * one shift always claims exactly one date, so dates.size() *is* the
+     * monthly count — no separate counter field to keep in sync.
+     *
+     * "One דחיפות per month": urgentShiftId may only move null -> a value
+     * (claim) or a value -> null (release, on delete); a second urgent shift
+     * tries value -> a different value, which neither branch allows.
+     *
+     * Map keys can't be regex-validated the way a plain field could (unlike
+     * the old dailyLocks.date), so nothing stops a forged write claiming a
+     * garbage date string as long as the size math holds — accepted, since
+     * the damage is self-scoped to the caller's own doc, uid-gated like
+     * everything else here.
      */
-    match /urgencyLocks/{lockId} {
-      allow read: if signedIn() && resource.data.uid == uid();
+    match /quotas/{quotaId} {
+      // `resource == null` matters: without it, an intern with nothing
+      // posted yet this month gets permission-denied (not "not found") the
+      // moment the form subscribes to pre-check against this doc. Not a new
+      // leak — /shifts is already world-readable to any signed-in intern.
+      allow read: if signedIn() && (resource == null || resource.data.uid == uid());
 
       allow create: if signedIn()
-        && lockId == uid() + '__' + incoming().monthKey
+        && quotaId == uid() + '__' + incoming().monthKey
         && incoming().uid == uid()
         && incoming().monthKey.matches('^[0-9]{4}-[0-9]{2}$')
-        && incoming().expireAt is timestamp;
-
-      allow update: if false;
-
-      // Released when the urgent shift is deleted, so a mistaken post does not
-      // cost the intern their one flag for the month.
-      allow delete: if signedIn() && resource.data.uid == uid();
-    }
-
-    // ---------------------------------------------------------- dailyLocks
-
-    /*
-     * "At most one shift per intern per date."
-     *
-     * Same mechanism as urgencyLocks: the id is derived from uid + the
-     * shift's own date (not the day it is posted) and written in the same
-     * batch as the shift, so a second shift dated the same day is a create
-     * on an existing document and fails, taking the batch with it.
-     */
-    match /dailyLocks/{lockId} {
-      allow read: if signedIn() && resource.data.uid == uid();
-
-      allow create: if signedIn()
-        && lockId == uid() + '__' + incoming().date
-        && incoming().uid == uid()
-        && incoming().date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && incoming().expireAt is timestamp;
-
-      allow update: if false;
-
-      // Released when the shift is deleted, so the date is free again if
-      // the intern regrets the delete and wants to re-post it.
-      allow delete: if signedIn() && resource.data.uid == uid();
-    }
-
-    // ------------------------------------------------------- handoffCounts
-
-    /*
-     * "At most four shifts posted per intern per month, counting shifts
-     * still on the books."
-     *
-     * The id is derived from uid + month. `count` moves by exactly one step
-     * at a time — up on `createShift`, down on `deleteShift` — and is
-     * clamped to [0, 4], both pinned so a forged request can neither jump
-     * the counter nor drive it out of range. The counter document itself is
-     * never deleted, only its `count` field.
-     */
-    match /handoffCounts/{lockId} {
-      allow read: if signedIn() && resource.data.uid == uid();
-
-      allow create: if signedIn()
-        && lockId == uid() + '__' + incoming().monthKey
-        && incoming().uid == uid()
-        && incoming().monthKey.matches('^[0-9]{4}-[0-9]{2}$')
-        && incoming().count == 1
+        && incoming().dates.size() == 1
+        && (incoming().get('urgentShiftId', null) == null
+            || incoming().get('urgentShiftId', null) is string)
         && incoming().expireAt is timestamp;
 
       allow update: if signedIn()
         && resource.data.uid == uid()
-        && changedKeys().hasOnly(['count'])
+        && changedKeys().hasOnly(['dates', 'urgentShiftId'])
         && (
-          (incoming().count == resource.data.count + 1 && incoming().count <= 4)
-          || (incoming().count == resource.data.count - 1 && incoming().count >= 0)
+          ( // claiming a new date
+            incoming().dates.diff(resource.data.dates).addedKeys().size() == 1
+            && incoming().dates.diff(resource.data.dates).removedKeys().size() == 0
+            && incoming().dates.size() <= 4
+            && (
+              incoming().get('urgentShiftId', null) == resource.data.get('urgentShiftId', null)
+              || (resource.data.get('urgentShiftId', null) == null
+                  && incoming().get('urgentShiftId', null) is string)
+            )
+          )
+          ||
+          ( // releasing a date
+            incoming().dates.diff(resource.data.dates).removedKeys().size() == 1
+            && incoming().dates.diff(resource.data.dates).addedKeys().size() == 0
+            && (
+              incoming().get('urgentShiftId', null) == resource.data.get('urgentShiftId', null)
+              || (incoming().get('urgentShiftId', null) == null
+                  && resource.data.get('urgentShiftId', null) is string)
+            )
+          )
         );
 
       allow delete: if false;

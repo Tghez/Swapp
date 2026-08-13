@@ -87,6 +87,18 @@ describe("handoff schema", () => {
       const result = parse({ note: Array(16).fill("מילה").join(" ") });
       expect(errorFor(result, "note")).toBe("עד 15 מילים");
     });
+
+    it("rejects a single unspaced word that exceeds the byte cap even though it is one word", () => {
+      // Hebrew characters are ~2 bytes each in UTF-8, so 200 of them is ~400
+      // bytes but still counts as one "word" — the word-count check alone
+      // would let this through.
+      const result = parse({ note: "א".repeat(200) });
+      expect(errorFor(result, "note")).toBe("ההערה ארוכה מדי");
+    });
+
+    it("accepts many short words that stay under both caps", () => {
+      expect(parse({ note: Array(15).fill("א").join(" ") }).success).toBe(true);
+    });
   });
 
   describe("the date window", () => {

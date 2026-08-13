@@ -1,7 +1,7 @@
 import {
   collection,
+  deleteField,
   doc,
-  increment,
   onSnapshot,
   orderBy,
   query,
@@ -14,7 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
-import { COLLECTIONS, dailyLockId, handoffCountId, urgencyLockId } from "./collections";
+import { COLLECTIONS, quotaId } from "./collections";
 import { buildProfilePayload } from "./users";
 import { toShiftFromSnapshot } from "./shiftMapper";
 import {
@@ -86,16 +86,23 @@ export function subscribeToMyShifts(
  * Posts a shift.
  *
  * Written as one batch so all of its effects land together or not at all: the
- * shift itself, the profile upsert that makes the form self-filling next time,
- * the one-shift-per-date lock, the four-a-month handoff counter, and — when
- * דחיפות is ticked — the once-per-month urgency lock.
+ * shift itself, the profile upsert that makes the form self-filling next
+ * time, and one write to the intern's `quotas/{uid}__{monthKey}` doc that
+ * covers all three posting limits at once (PDR §6.2): it claims this date in
+ * the doc's `dates` map (a repeat date is a no-op change the rules reject,
+ * enforcing "at most one shift per date"), whose key count the rules cap at 4
+ * (enforcing the monthly limit — no separate counter needed, since one shift
+ * always claims exactly one date), and — when דחיפות is ticked — claims
+ * `urgentShiftId`, which the rules only allow to move from null to a value.
  *
- * The date lock works exactly like the urgency lock: its id is derived from
- * uid + the shift's own date (not the day it is posted), so a second shift
- * dated the same day is a `create` on a document that already exists, which
- * the rules do not permit. {@link deleteShift} releases it again, same as
- * the monthly counter's `count` field (capped at 4 by the rules) — so both
- * track shifts currently on the books rather than shifts ever posted.
+ * The `set(..., {merge:true})` call works whether this is the intern's first
+ * shift of the month (Firestore creates the doc fresh) or a later one
+ * (merges just the touched paths) — the rules distinguish create from update
+ * server-side purely from whether the doc existed before, not which client
+ * call produced the write. `monthKey` is the shift's own, not the month it
+ * was posted in: posting on 20 August for a shift on 5 September spends
+ * September's quota, not August's, and keeps the quota doc derivable from the
+ * shift alone, which is what lets {@link deleteShift} release it.
  */
 export async function createShift(
   uid: string,
@@ -135,39 +142,20 @@ export async function createShift(
     { merge: true },
   );
 
-  batch.set(doc(db, COLLECTIONS.dailyLocks, dailyLockId(uid, input.date)), {
-    uid,
-    date: input.date,
-    monthKey,
-    shiftId: shiftRef.id,
-    createdAt: serverTimestamp(),
-    expireAt,
-  });
-
   batch.set(
-    doc(db, COLLECTIONS.handoffCounts, handoffCountId(uid, monthKey)),
+    doc(db, COLLECTIONS.quotas, quotaId(uid, monthKey)),
     {
       uid,
       monthKey,
-      count: increment(1),
       expireAt,
+      // A plain nested object with {merge:true} deep-merges into the
+      // existing `dates` map (unlike a dotted string key, which `set` — as
+      // opposed to `update` — treats as one literal field name).
+      dates: { [input.date]: true },
+      ...(input.urgent ? { urgentShiftId: shiftRef.id } : {}),
     },
     { merge: true },
   );
-
-  if (input.urgent) {
-    // Keyed by the month the shift falls in, not the month it was posted in.
-    // Posting on 20 August for a shift on 5 September should spend September's
-    // urgency, not August's — and it keeps the lock's id derivable from the
-    // shift alone, which is what lets deleteShift release it.
-    batch.set(doc(db, COLLECTIONS.urgencyLocks, urgencyLockId(uid, monthKey)), {
-      uid,
-      monthKey,
-      shiftId: shiftRef.id,
-      createdAt: serverTimestamp(),
-      expireAt,
-    });
-  }
 
   await batch.commit();
   return shiftRef.id;
@@ -176,13 +164,13 @@ export async function createShift(
 /**
  * Deletes a shift, which in this app means "I handed it off" (PDR §6.1).
  *
- * An urgent shift also releases its lock, so deleting a mistaken post does not
- * cost the intern their דחיפות for the month. The monthly handoff counter is
- * decremented too, so the four-a-month cap tracks shifts still on the books
- * rather than shifts ever posted — a shift marked handed off via
- * {@link markShiftHandedOff} stays counted, since only deletion frees the
- * slot. The daily lock is released as well, so the date is free again if the
- * intern regrets the delete and wants to re-post it.
+ * Releases this date from the intern's quota doc (so the date and, if this
+ * was the month's fourth shift, a monthly slot are free again if the intern
+ * regrets the delete and wants to re-post) and, for an urgent shift, clears
+ * `urgentShiftId` too, so deleting a mistaken post does not cost the intern
+ * their דחיפות for the month. A shift marked handed off via
+ * {@link markShiftHandedOff} stays on the books (and counted) instead, since
+ * only deletion frees the quota.
  */
 export async function deleteShift(shift: Shift): Promise<void> {
   const db = getDb();
@@ -190,20 +178,10 @@ export async function deleteShift(shift: Shift): Promise<void> {
 
   batch.delete(doc(db, COLLECTIONS.shifts, shift.id));
 
-  batch.update(
-    doc(db, COLLECTIONS.handoffCounts, handoffCountId(shift.ownerId, shift.monthKey)),
-    { count: increment(-1) },
-  );
-
-  batch.delete(
-    doc(db, COLLECTIONS.dailyLocks, dailyLockId(shift.ownerId, shift.date)),
-  );
-
-  if (shift.urgent) {
-    batch.delete(
-      doc(db, COLLECTIONS.urgencyLocks, urgencyLockId(shift.ownerId, shift.monthKey)),
-    );
-  }
+  batch.update(doc(db, COLLECTIONS.quotas, quotaId(shift.ownerId, shift.monthKey)), {
+    [`dates.${shift.date}`]: deleteField(),
+    ...(shift.urgent ? { urgentShiftId: null } : {}),
+  });
 
   await batch.commit();
 }

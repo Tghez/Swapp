@@ -50,7 +50,7 @@ are missing, rather than failing with an opaque Firebase error.
    domains: add `localhost` and the Vercel domain. Sign-in fails without this.
 4. **Deploy rules and indexes**: `npm run deploy:rules`.
 5. **Turn on TTL** — Firestore → Time-to-live. Add a policy on the `expireAt`
-   field for each of `shifts`, `urgencyLocks`, `dailyLocks`, and `handoffCounts`.
+   field for each of `shifts` and `quotas`.
 
 Step 5 is what implements the monthly cleanup, and it is easy to forget — no
 TTL policy means nothing is ever deleted. Nothing visibly breaks, so check it.
@@ -84,14 +84,17 @@ a forged request from devtools is evaluated by exactly those rules.
 - Profiles are private to their owner. The board never needs to read them
   because owner contact details are denormalised onto each shift.
 
-### דחיפות is enforced server-side
+### Posting limits are enforced server-side
 
 The PDR expected the once-per-month urgency limit to be a client-side check.
-It turned out to be enforceable for free: an urgent shift is written in the
-same batch as a lock document at `urgencyLocks/{uid}__{YYYY-MM}`. Batches are
-atomic and the rules permit `create` on that collection but never `update`, so
-a second urgent shift in the same month hits an existing document and takes
-the whole batch down with it.
+It turned out to be enforceable for free, along with the one-shift-per-date
+and four-a-month limits: all three live on a single `quotas/{uid}__{YYYY-MM}`
+document, written in the same batch as the shift itself. Batches are atomic,
+and the rules only permit `dates` to gain or lose exactly one key per write
+and `urgentShiftId` to move between `null` and a value — so a shift that
+would violate any of the three hits a write the rules reject and takes the
+whole batch down with it. The client subscribes to this same document to
+pre-check all three limits live, before the intern can even click "post."
 
 `npm run test:rules` covers each of these claims.
 
