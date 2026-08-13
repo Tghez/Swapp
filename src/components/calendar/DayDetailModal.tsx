@@ -12,6 +12,7 @@ import {
   type Department,
   type DepartmentId,
 } from "@/lib/domain/departments";
+import { formatILS, shiftValueILS } from "@/lib/domain/pay";
 import {
   buildWhatsAppMessage,
   buildWhatsAppUrl,
@@ -143,6 +144,7 @@ function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
             ✓ נמסרה
           </span>
         )}
+        <MoneyBadge amount={shiftValueILS(shift.department, shift.date)} />
       </div>
 
       <dl className="mt-2 flex flex-col gap-1 text-sm text-text/80">
@@ -190,6 +192,39 @@ function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
         )}
       </div>
     </li>
+  );
+}
+
+/** How much the shift is worth (PDR-adjacent pay split by department and weekday). */
+function MoneyBadge({ amount }: { amount: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold text-primary-fg">
+      <CoinsIcon className="size-4" />
+      {formatILS(amount)}
+    </span>
+  );
+}
+
+/** Two overlapping coins, each with a rim and a reeded edge. */
+function CoinsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <g transform="rotate(-18 8 9)">
+        <ellipse cx="8" cy="9.4" rx="7.2" ry="3.6" className="fill-primary-hover" />
+        <rect x="1.6" y="8.6" width="1" height="2.2" className="fill-primary-fg" />
+        <rect x="3.9" y="10.2" width="1" height="2.2" className="fill-primary-fg" />
+        <rect x="6.4" y="11" width="1" height="2.2" className="fill-primary-fg" />
+        <ellipse cx="8" cy="7.9" rx="6" ry="2.9" className="fill-primary" />
+      </g>
+      <g transform="rotate(-3 16 15.5)">
+        <ellipse cx="16" cy="15.5" rx="7.6" ry="3.8" className="fill-primary-hover" />
+        <rect x="9.2" y="14.9" width="1" height="2.2" className="fill-primary-fg" />
+        <rect x="11.8" y="16.3" width="1" height="2.2" className="fill-primary-fg" />
+        <rect x="14.6" y="16.9" width="1" height="2.2" className="fill-primary-fg" />
+        <rect x="17.5" y="16.7" width="1" height="2.2" className="fill-primary-fg" />
+        <ellipse cx="16" cy="14" rx="6.3" ry="3.1" className="fill-primary" />
+      </g>
+    </svg>
   );
 }
 
