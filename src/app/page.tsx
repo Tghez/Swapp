@@ -53,7 +53,7 @@ function Greeting() {
         as &apos; would make the Hebrew unreadable in source.
       */}
       <p className="mt-4 max-w-md text-base leading-relaxed text-muted">
-        {"Swapp הוא המקום שבו סטאז'רים באיכילוב מוסרים ולוקחים תורנויות. " +
+        {"Swapp הוא המקום שבו סטאז'רים באיכילוב מוסרים, מחליפים או לוקחים תורנויות. " +
           "מפרסמים תורנות שרוצים למסור, או מוצאים אחת לקחת — והקשר נסגר ישירות בוואטסאפ."}
       </p>
 

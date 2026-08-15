@@ -54,6 +54,7 @@ export interface WhatsAppMessageContext {
   ownerName: string;
   location: string;
   dateLabel: string;
+  willingToSwap?: boolean;
 }
 
 /** The message pre-filled into the conversation. Kept short and specific. */
@@ -61,10 +62,12 @@ export function buildWhatsAppMessage({
   ownerName,
   location,
   dateLabel,
+  willingToSwap = false,
 }: WhatsAppMessageContext): string {
   const owner = ownerName.trim().split(/\s+/)[0] || ownerName.trim();
+  const action = willingToSwap ? "מעוניין/ת למסור/להחליף" : "מוסר/ת";
   return (
-    `היי ${owner} ראיתי שאת/ה מוסר תורנות ב${location} ב${dateLabel}. ` +
+    `היי ${owner} ראיתי שאת/ה ${action} תורנות ב${location} ב${dateLabel}. ` +
     `אני מעוניינ/ת, האם רלוונטי?`
   );
 }

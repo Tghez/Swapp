@@ -100,4 +100,14 @@ describe("buildWhatsAppMessage", () => {
       "היי טל ",
     );
   });
+
+  it("defaults to a straight-handoff phrasing", () => {
+    expect(buildWhatsAppMessage(context)).toContain("מוסר/ת");
+  });
+
+  it("offers to swap when the owner is willing to", () => {
+    const message = buildWhatsAppMessage({ ...context, willingToSwap: true });
+    expect(message).toContain("מעוניין/ת למסור/להחליף");
+    expect(message).not.toContain("מוסר/ת תורנות");
+  });
 });

@@ -124,6 +124,7 @@ function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
       ownerName: shift.ownerName,
       location,
       dateLabel,
+      willingToSwap: shift.willingToSwap,
     }),
   );
 
