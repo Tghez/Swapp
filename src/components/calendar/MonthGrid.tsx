@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { buildMonthGrid, groupByDateKey, WEEKDAY_LABELS } from "@/lib/date/calendar";
 import { formatFullDate } from "@/lib/date/calendar";
+import { getHoliday } from "@/lib/domain/holidays";
 import { ShiftChip } from "./ShiftChip";
 import type { Shift } from "@/lib/domain/types";
 
@@ -46,20 +47,22 @@ export function MonthGrid({ monthDate, shifts, onSelectDay }: MonthGridProps) {
           const visible = dayShifts.slice(0, MAX_CHIPS_PER_CELL);
           const hidden = dayShifts.length - visible.length;
           const hasShifts = dayShifts.length > 0;
+          const holiday = getHoliday(cell.key);
+          const isClickable = hasShifts || holiday !== null;
 
           return (
             <button
               key={cell.key}
               type="button"
-              disabled={!hasShifts}
+              disabled={!isClickable}
               onClick={() => onSelectDay(cell.date)}
-              aria-label={`${formatFullDate(cell.date)} — ${
+              aria-label={`${holiday ? `${holiday.label} — ` : ""}${formatFullDate(cell.date)} — ${
                 hasShifts ? `${dayShifts.length} תורנויות` : "אין תורנויות"
               }`}
               className={cn(
                 "flex min-h-20 flex-col gap-1 border-b border-s border-border p-1 text-start align-top transition-colors sm:min-h-28",
                 cell.inMonth ? "bg-surface" : "bg-bg/40",
-                hasShifts
+                isClickable
                   ? "cursor-pointer hover:bg-primary/10"
                   : "cursor-default",
               )}
@@ -76,6 +79,12 @@ export function MonthGrid({ monthDate, shifts, onSelectDay }: MonthGridProps) {
               >
                 {cell.date.getDate()}
               </span>
+
+              {holiday && (
+                <span className="block w-full shrink-0 truncate rounded-md bg-holiday px-0.5 py-0.5 text-center text-[8px] font-bold leading-tight tracking-tight text-white">
+                  {holiday.label}
+                </span>
+              )}
 
               <span className="flex w-full flex-col gap-0.5 overflow-hidden">
                 {visible.map((shift) => (

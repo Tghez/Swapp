@@ -47,6 +47,17 @@
   --color-dept-kirurgia: #4a6c8c;
   --color-dept-kirurgia-soft: #d8e2eb;
 
+  /* Holiday — dusty wine, distinct from every department and status hue
+     above but still drawn from the same warm, earthy family as the rest of
+     the palette. The month grid marks a holiday cell with a solid
+     --color-holiday bar under the day number, naming the holiday in small
+     white text truncated to one line (Google-Calendar-style — a mobile
+     cell is too narrow to ever guarantee every name fits, so this never
+     wraps and pushes the row taller); --color-holiday-soft is the badge
+     background in the day-detail view, which always shows the full name. */
+  --color-holiday: #9c5560;
+  --color-holiday-soft: #f0dde0;
+
   /* Corners — pill buttons, 14px cards */
   --radius-card: 14px;
   --radius-pill: 9999px;

@@ -5,6 +5,7 @@ import { Button, ExternalButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Card";
 import { SwapBadge, UrgentBadge } from "@/components/ui/Feedback";
 import { formatFullDate } from "@/lib/date/calendar";
+import { dateKeyOf } from "@/lib/date/monthWindow";
 import {
   DEPARTMENTS,
   formatLocation,
@@ -12,6 +13,7 @@ import {
   type Department,
   type DepartmentId,
 } from "@/lib/domain/departments";
+import { getHoliday } from "@/lib/domain/holidays";
 import { formatILS, shiftValueILS } from "@/lib/domain/pay";
 import {
   buildWhatsAppMessage,
@@ -36,6 +38,7 @@ export function DayDetailModal({
   onClose,
 }: DayDetailModalProps) {
   const dateLabel = date ? formatFullDate(date) : "";
+  const holiday = date ? getHoliday(dateKeyOf(date)) : null;
 
   function renderShift(shift: Shift) {
     return (
@@ -54,6 +57,12 @@ export function DayDetailModal({
 
   return (
     <Modal open={date !== null} title={dateLabel} onClose={onClose}>
+      {holiday && (
+        <p className="mb-3 flex items-center gap-2 rounded-card border border-holiday bg-holiday-soft px-3 py-2 text-sm font-bold text-text">
+          <span className="size-2.5 shrink-0 rounded-full bg-holiday" />
+          {holiday.label}
+        </p>
+      )}
       {shifts.length === 0 ? (
         <EmptyState>אין תורנויות ביום הזה</EmptyState>
       ) : groups ? (
