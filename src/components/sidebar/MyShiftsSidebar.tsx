@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardTitle, EmptyState } from "@/components/ui/Card";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import {
   ErrorBanner,
   Spinner,
@@ -65,6 +66,7 @@ function MyShiftCard({ shift }: { shift: Shift }) {
   const [confirmingRegret, setConfirmingRegret] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHandoffNotice, setShowHandoffNotice] = useState(false);
 
   const department = getDepartment(shift.department);
   const handedOff = shift.status === "handedOff";
@@ -74,11 +76,21 @@ function MyShiftCard({ shift }: { shift: Shift }) {
     setError(null);
     try {
       await action();
+      return true;
     } catch {
       setError(failure);
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handOff() {
+    const ok = await run(() => markShiftHandedOff(shift), "הפעולה נכשלה");
+    // מיון כללי handoffs need Anah's sign-off before they're final — surface
+    // that immediately, since the owner otherwise has no reason to think the
+    // shift isn't fully settled once it's marked handed off.
+    if (ok && shift.department === "miyun_klali") setShowHandoffNotice(true);
   }
 
   return (
@@ -162,9 +174,7 @@ function MyShiftCard({ shift }: { shift: Shift }) {
                 size="sm"
                 variant="ghost"
                 disabled={busy}
-                onClick={() =>
-                  run(() => markShiftHandedOff(shift), "הפעולה נכשלה")
-                }
+                onClick={handOff}
               >
                 מסרתי
               </Button>
@@ -179,6 +189,66 @@ function MyShiftCard({ shift }: { shift: Shift }) {
             </>
           ))}
       </div>
+
+      <MiyunKlaliHandoffNotice
+        open={showHandoffNotice}
+        onClose={() => setShowHandoffNotice(false)}
+      />
     </li>
+  );
+}
+
+/**
+ * A מיון כללי handoff isn't final until Anah (מלר"ד) signs off by email — the
+ * app has no way to enforce that, so this surfaces the requirement the moment
+ * the owner marks the shift handed off, while it's still top of mind.
+ */
+function MiyunKlaliHandoffNotice({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal open={open} title="איזה כיף, נמצאה החלפה! 🎉" onClose={onClose}>
+      <div className="flex flex-col gap-3 text-sm text-text">
+        <p>
+          שימו לב: ההחלפה אינה סופית עד לקבלת אישור רשמי מאנה מהמלר&quot;ד.
+        </p>
+
+        <div>
+          <p className="font-bold">מה עושים עכשיו?</p>
+          <p>
+            שולחים מייל לאנה בכתובת:{" "}
+            <a
+              href="mailto:annah@tlvmc.gov.il"
+              className="font-bold text-primary underline"
+              dir="ltr"
+            >
+              annah@tlvmc.gov.il
+            </a>
+          </p>
+        </div>
+
+        <p className="font-bold text-urgent">
+          ⚠️ חובה לכתב (CC) את המציע/ה והמחליף/ה!
+        </p>
+
+        <div>
+          <p className="font-semibold">תוכן המייל חייב לכלול:</p>
+          <ul className="list-disc pr-5">
+            <li>תאריכי ההחלפה המדויקים</li>
+            <li>שמות מלאים</li>
+            <li>מספרי תעודת זהות</li>
+            <li>כתובות מייל של שני הצדדים</li>
+          </ul>
+        </div>
+
+        <p className="font-bold">
+          ללא שליחת המייל וקבלת האישור, המשמרת נשארת על שמכם.
+        </p>
+      </div>
+    </Modal>
   );
 }

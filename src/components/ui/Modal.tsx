@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -65,7 +66,10 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
 
   if (!open) return null;
 
-  return (
+  // Portalled to <body> so a fixed-position modal is never composited through
+  // an ancestor's opacity/transform (e.g. a handed-off shift's `opacity-70`
+  // card, which would otherwise wash out a modal opened from inside it).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-text/40 p-0 sm:items-center sm:p-4"
       onClick={onClose}
@@ -102,6 +106,7 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
         </div>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
