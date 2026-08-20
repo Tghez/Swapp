@@ -107,7 +107,7 @@ describe("buildWhatsAppMessage", () => {
 
   it("offers to swap when the owner is willing to", () => {
     const message = buildWhatsAppMessage({ ...context, willingToSwap: true });
-    expect(message).toContain("מעוניין/ת למסור/להחליף");
+    expect(message).toContain("מעוניינ/ת למסור/להחליף");
     expect(message).not.toContain("מוסר/ת תורנות");
   });
 });

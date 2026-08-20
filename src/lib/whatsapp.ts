@@ -65,7 +65,7 @@ export function buildWhatsAppMessage({
   willingToSwap = false,
 }: WhatsAppMessageContext): string {
   const owner = ownerName.trim().split(/\s+/)[0] || ownerName.trim();
-  const action = willingToSwap ? "מעוניין/ת למסור/להחליף" : "מוסר/ת";
+  const action = willingToSwap ? "מעוניינ/ת למסור/להחליף" : "מוסר/ת";
   return (
     `היי ${owner} ראיתי שאת/ה ${action} תורנות ב${location} ב${dateLabel}. ` +
     `אני מעוניינ/ת, האם רלוונטי?`
