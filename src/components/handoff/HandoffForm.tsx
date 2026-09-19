@@ -29,8 +29,9 @@ import {
   monthKeyOf,
   parseDateKey,
 } from "@/lib/date/monthWindow";
-import { createShift } from "@/lib/data/shifts";
+import { createShift, editShift } from "@/lib/data/shifts";
 import { useNow, useQuota } from "@/hooks/useShiftData";
+import type { Shift } from "@/lib/domain/types";
 
 interface FormState {
   displayName: string;
@@ -56,10 +57,18 @@ const BLANK: FormState = {
   willingToSwap: false,
 };
 
-export function HandoffForm() {
+interface HandoffFormProps {
+  /** When set, the form edits this shift instead of posting a new one. */
+  shift?: Shift;
+  /** Edit mode only: called after a successful save, instead of navigating away. */
+  onSaved?: () => void;
+}
+
+export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
   const router = useRouter();
   const { user, profile } = useAuth();
   const now = useNow();
+  const isEdit = shift != null;
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,15 +93,27 @@ export function HandoffForm() {
    * profile arrives without an effect copying it into state, and without
    * clobbering anything already typed while it was loading.
    */
-  const defaults = useMemo<FormState>(
-    () => ({
+  const defaults = useMemo<FormState>(() => {
+    if (shift) {
+      return {
+        displayName: shift.ownerName,
+        phone: shift.ownerPhone,
+        email: shift.ownerEmail,
+        date: shift.date,
+        department: shift.department,
+        internalUnit: shift.internalUnit ?? "",
+        note: shift.note ?? "",
+        urgent: shift.urgent,
+        willingToSwap: shift.willingToSwap,
+      };
+    }
+    return {
       ...BLANK,
       displayName: profile?.displayName || "",
       phone: profile?.phone || "",
       email: profile?.email || user?.email || "",
-    }),
-    [profile, user],
-  );
+    };
+  }, [shift, profile, user]);
 
   const values: FormState = { ...defaults, ...edits };
 
@@ -118,7 +139,27 @@ export function HandoffForm() {
    * `submitting` only clears on failure, so a genuine conflict still shows
    * before the next attempt.
    */
-  const { data: quota, loading: quotaLoading } = useQuota(user?.uid, targetMonthKey);
+  const { data: rawQuota, loading: quotaLoading } = useQuota(user?.uid, targetMonthKey);
+  /**
+   * Editing releases this shift's own date/urgent claim before reclaiming a
+   * (possibly identical) one, so its current claim must not count against
+   * itself here — otherwise picking the same date back would read as
+   * `dailyBlocked`. Only applies while still inside the shift's original
+   * month; edited into a different month, that month's quota never had this
+   * shift counted against it in the first place.
+   */
+  const quota = useMemo(() => {
+    if (!shift || !rawQuota || rawQuota.monthKey !== shift.monthKey) {
+      return rawQuota;
+    }
+    const restDates = { ...rawQuota.dates };
+    delete restDates[shift.date];
+    return {
+      ...rawQuota,
+      dates: restDates,
+      urgentShiftId: rawQuota.urgentShiftId === shift.id ? null : rawQuota.urgentShiftId,
+    };
+  }, [shift, rawQuota]);
   const evaluation =
     !submitting && values.date ? evaluateQuota(quota, values.date) : null;
   const dailyBlocked = evaluation?.dailyBlocked ?? false;
@@ -195,14 +236,19 @@ export function HandoffForm() {
     setErrors({});
     setSubmitting(true);
     try {
-      await createShift(user.uid, parsed.data);
-      router.push("/?posted=1");
+      if (isEdit) {
+        await editShift(user.uid, shift, parsed.data);
+        onSaved?.();
+      } else {
+        await createShift(user.uid, parsed.data);
+        router.push("/?posted=1");
+      }
     } catch {
       // Every rule this form knows about is pre-checked live above, so
       // reaching the server and still being denied means something the
       // pre-check couldn't have caught (a genuine last-moment race, a
       // dropped connection) — no point guessing which.
-      setSubmitError("הפרסום נכשל. יש לנסות שוב.");
+      setSubmitError(isEdit ? "השמירה נכשלה. יש לנסות שוב." : "הפרסום נכשל. יש לנסות שוב.");
       setSubmitting(false);
     }
   }
@@ -361,7 +407,7 @@ export function HandoffForm() {
         {submitting && (
           <Spinner className="size-5 border-primary-fg/30 border-t-primary-fg" />
         )}
-        פרסום התורנות
+        {isEdit ? "שמירת שינויים" : "פרסום התורנות"}
       </Button>
     </form>
   );

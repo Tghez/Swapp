@@ -186,6 +186,28 @@ export async function deleteShift(shift: Shift): Promise<void> {
   await batch.commit();
 }
 
+/**
+ * Edits a shift by replacing it: delete the old document, then post the new
+ * values as a fresh one.
+ *
+ * Not one atomic batch — a date or urgent change can move quota bookkeeping
+ * across two different `quotas/{uid}__{monthKey}` docs, and even within the
+ * same doc, `firestore.rules` only allows a write to *either* claim a date
+ * *or* release one, never both in the same update. So editing reuses the same
+ * two calls a manual delete-and-repost would make, both of which already
+ * enforce every posting limit on their own. A failure between the two leaves
+ * the shift deleted rather than half-edited; the edit form pre-checks the
+ * same quota the server enforces to keep that rare.
+ */
+export async function editShift(
+  uid: string,
+  shift: Shift,
+  input: HandoffInput,
+): Promise<string> {
+  await deleteShift(shift);
+  return createShift(uid, input);
+}
+
 /** Puts a handed-off shift back on the board. */
 export async function reopenShift(shift: Shift): Promise<void> {
   await updateDoc(doc(getDb(), COLLECTIONS.shifts, shift.id), {

@@ -17,6 +17,7 @@ import { parseDateKey } from "@/lib/date/monthWindow";
 import { deleteShift, markShiftHandedOff, reopenShift } from "@/lib/data/shifts";
 import { useBrowsableMonths, useMyShifts, useNow } from "@/hooks/useShiftData";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { HandoffForm } from "@/components/handoff/HandoffForm";
 import type { Shift } from "@/lib/domain/types";
 
 /**
@@ -67,6 +68,7 @@ function MyShiftCard({ shift }: { shift: Shift }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHandoffNotice, setShowHandoffNotice] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const department = getDepartment(shift.department);
   const handedOff = shift.status === "handedOff";
@@ -124,6 +126,27 @@ function MyShiftCard({ shift }: { shift: Shift }) {
             <span className="rounded-pill bg-secondary/20 px-2 py-0.5 text-xs font-bold text-secondary-fg">
               ✓ נמסרה
             </span>
+          )}
+          {!handedOff && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="עריכת תורנות"
+              className="flex size-6 shrink-0 items-center justify-center rounded-pill text-muted transition-colors hover:bg-border/50 hover:text-text"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+                aria-hidden="true"
+              >
+                <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -194,6 +217,10 @@ function MyShiftCard({ shift }: { shift: Shift }) {
         open={showHandoffNotice}
         onClose={() => setShowHandoffNotice(false)}
       />
+
+      <Modal open={editing} title="עריכת תורנות" onClose={() => setEditing(false)}>
+        <HandoffForm shift={shift} onSaved={() => setEditing(false)} />
+      </Modal>
     </li>
   );
 }
