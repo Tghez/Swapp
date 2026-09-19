@@ -126,7 +126,8 @@ interface ShiftDetailProps {
   dateLabel: string;
 }
 
-function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
+/** The single-shift card — also reused by the landing page's דחיפות list. */
+export function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
   const department = getDepartment(shift.department);
   const location = formatLocation(shift.department, shift.internalUnit);
   const handedOff = shift.status === "handedOff";
@@ -242,7 +243,7 @@ function CoinsIcon({ className }: { className?: string }) {
   );
 }
 
-function ChevronIcon({ className }: { className?: string }) {
+export function ChevronIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"

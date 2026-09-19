@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { AppShell } from "@/components/layout/AppShell";
 import { MyShiftsSidebar } from "@/components/sidebar/MyShiftsSidebar";
+import { UpcomingUrgentShifts } from "@/components/landing/UpcomingUrgentShifts";
 import { ButtonLink } from "@/components/ui/Button";
 import { SuccessBanner } from "@/components/ui/Feedback";
 import {
@@ -70,6 +71,8 @@ function Greeting() {
           לקחת תורנות
         </ButtonLink>
       </div>
+
+      <UpcomingUrgentShifts />
     </section>
   );
 }

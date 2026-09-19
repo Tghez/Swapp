@@ -83,6 +83,36 @@ export function subscribeToMyShifts(
 }
 
 /**
+ * Shifts across several months, merged into one array.
+ *
+ * For widgets that need a short date window rather than a single calendar
+ * month (e.g. the landing page's upcoming-דחיפות list) — every query still
+ * filters by month, per the TTL invariant, this just fans out to one listener
+ * per distinct month and merges as each resolves. A listener that resolves
+ * before its siblings briefly reports a partial merge rather than waiting;
+ * the next snapshot from whichever month is still catching up corrects it.
+ */
+export function subscribeToShiftsForMonths(
+  monthKeys: readonly MonthKey[],
+  onChange: (shifts: Shift[]) => void,
+  onError?: (error: Error) => void,
+): () => void {
+  const uniqueKeys = Array.from(new Set(monthKeys));
+  const byMonth = new Map<MonthKey, Shift[]>();
+  const unsubscribes = uniqueKeys.map((monthKey) =>
+    subscribeToMonthShifts(
+      monthKey,
+      (shifts) => {
+        byMonth.set(monthKey, shifts);
+        onChange(uniqueKeys.flatMap((key) => byMonth.get(key) ?? []));
+      },
+      onError,
+    ),
+  );
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+}
+
+/**
  * Posts a shift.
  *
  * Written as one batch so all of its effects land together or not at all: the

@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { subscribeToMonthShifts, subscribeToMyShifts } from "@/lib/data/shifts";
+import { addDays, isAfter, isBefore, startOfDay } from "date-fns";
+import {
+  subscribeToMonthShifts,
+  subscribeToMyShifts,
+  subscribeToShiftsForMonths,
+} from "@/lib/data/shifts";
 import { subscribeToQuota } from "@/lib/data/quotas";
-import { dateKeyOf, getBrowsableMonths, type MonthKey } from "@/lib/date/monthWindow";
+import {
+  dateKeyOf,
+  getBrowsableMonths,
+  monthKeyOf,
+  parseDateKey,
+  type MonthKey,
+} from "@/lib/date/monthWindow";
 import type { Quota, Shift } from "@/lib/domain/types";
 
 /**
@@ -104,6 +115,55 @@ export function useMonthShifts(
   }, [monthKey]);
 
   return derive(entry, monthKey, NO_SHIFTS);
+}
+
+/**
+ * Open, דחוף shifts landing today through `days` days from now (inclusive) —
+ * the landing page's upcoming-דחיפות list.
+ *
+ * Composes {@link subscribeToShiftsForMonths} for the (usually one, sometimes
+ * two, when the window crosses a month boundary) months the range touches,
+ * then filters and sorts client-side, same tradeoff as {@link useMonthShifts}.
+ */
+export function useUpcomingUrgentShifts(
+  now: Date,
+  days: number,
+): Subscription<readonly Shift[]> {
+  const rangeStart = useMemo(() => startOfDay(now), [now]);
+  const rangeEnd = useMemo(() => addDays(rangeStart, days), [rangeStart, days]);
+
+  const monthsKey = useMemo(() => {
+    const start = monthKeyOf(rangeStart);
+    const end = monthKeyOf(rangeEnd);
+    return start === end ? start : `${start},${end}`;
+  }, [rangeStart, rangeEnd]);
+
+  const [entry, setEntry] = useState<Entry<readonly Shift[]> | null>(null);
+
+  useEffect(() => {
+    return subscribeToShiftsForMonths(
+      monthsKey.split(","),
+      (shifts) => setEntry({ key: monthsKey, data: shifts, error: null }),
+      (error) =>
+        setEntry({ key: monthsKey, data: NO_SHIFTS, error: messageFor(error) }),
+    );
+  }, [monthsKey]);
+
+  const monthShifts = derive(entry, monthsKey, NO_SHIFTS);
+
+  const data = useMemo(
+    () =>
+      monthShifts.data
+        .filter((shift) => shift.urgent && shift.status === "open")
+        .filter((shift) => {
+          const day = parseDateKey(shift.date);
+          return !isBefore(day, rangeStart) && !isAfter(day, rangeEnd);
+        })
+        .toSorted((a, b) => a.date.localeCompare(b.date)),
+    [monthShifts.data, rangeStart, rangeEnd],
+  );
+
+  return { data, loading: monthShifts.loading, error: monthShifts.error };
 }
 
 /** The signed-in intern's own shifts, for the sidebar. */
