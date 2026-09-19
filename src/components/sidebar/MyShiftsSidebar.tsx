@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardTitle, EmptyState } from "@/components/ui/Card";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink, ExternalButtonLink } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import {
   ErrorBanner,
@@ -15,6 +15,7 @@ import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import { formatFullDate } from "@/lib/date/calendar";
 import { parseDateKey } from "@/lib/date/monthWindow";
 import { deleteShift, markShiftHandedOff, reopenShift } from "@/lib/data/shifts";
+import { buildAnahHandoffEmailUrl } from "@/lib/email";
 import { useBrowsableMonths, useMyShifts, useNow } from "@/hooks/useShiftData";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { HandoffForm } from "@/components/handoff/HandoffForm";
@@ -214,6 +215,7 @@ function MyShiftCard({ shift }: { shift: Shift }) {
       </div>
 
       <MiyunKlaliHandoffNotice
+        shift={shift}
         open={showHandoffNotice}
         onClose={() => setShowHandoffNotice(false)}
       />
@@ -231,12 +233,20 @@ function MyShiftCard({ shift }: { shift: Shift }) {
  * the owner marks the shift handed off, while it's still top of mind.
  */
 function MiyunKlaliHandoffNotice({
+  shift,
   open,
   onClose,
 }: {
+  shift: Shift;
   open: boolean;
   onClose: () => void;
 }) {
+  const emailUrl = buildAnahHandoffEmailUrl({
+    date: shift.date,
+    ownerName: shift.ownerName,
+    ownerEmail: shift.ownerEmail,
+  });
+
   return (
     <Modal open={open} title="איזה כיף, נמצאה החלפה! 🎉" onClose={onClose}>
       <div className="flex flex-col gap-3 text-sm text-text">
@@ -244,22 +254,8 @@ function MiyunKlaliHandoffNotice({
           שימו לב: ההחלפה אינה סופית עד לקבלת אישור רשמי מאנה מהמלר&quot;ד.
         </p>
 
-        <div>
-          <p className="font-bold">מה עושים עכשיו?</p>
-          <p>
-            שולחים מייל לאנה בכתובת:{" "}
-            <a
-              href="mailto:annah@tlvmc.gov.il"
-              className="font-bold text-primary underline"
-              dir="ltr"
-            >
-              annah@tlvmc.gov.il
-            </a>
-          </p>
-        </div>
-
         <p className="font-bold text-urgent">
-          ⚠️ חובה לכתב (CC) את המציע/ה והמחליף/ה!
+          ⚠️ חובה לכתב (CC) את המחליף/ה!
         </p>
 
         <div>
@@ -271,6 +267,10 @@ function MiyunKlaliHandoffNotice({
             <li>כתובות מייל של שני הצדדים</li>
           </ul>
         </div>
+
+        <ExternalButtonLink href={emailUrl} className="self-start">
+          שלח מייל
+        </ExternalButtonLink>
 
         <p className="font-bold">
           ללא שליחת המייל וקבלת האישור, המשמרת נשארת על שמכם.
