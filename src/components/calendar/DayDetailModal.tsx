@@ -112,7 +112,11 @@ function groupByDepartment(shifts: readonly Shift[]): DepartmentGroup[] {
     else byId.set(shift.department, [shift]);
   }
   return DEPARTMENTS.filter((department) => byId.has(department.id)).map(
-    (department) => ({ department, shifts: byId.get(department.id)! }),
+    (department) => ({
+      department,
+      // דחופים float to the top of their department's list.
+      shifts: byId.get(department.id)!.toSorted((a, b) => Number(b.urgent) - Number(a.urgent)),
+    }),
   );
 }
 
