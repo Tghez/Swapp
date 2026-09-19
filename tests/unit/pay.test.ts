@@ -21,6 +21,24 @@ describe("shiftValueILS", () => {
     expect(shiftValueILS("miyun_klali", "2026-08-15")).toBe(1428);
     expect(shiftValueILS("pnimit", "2026-08-15")).toBe(1190);
   });
+
+  it("pays ערב חג like Friday, even on a weekday", () => {
+    // 2026-09-11 (ערב ראש השנה) is a Friday, but 2026-04-01 (ערב פסח) is a Wednesday
+    expect(shiftValueILS("miyun_klali", "2026-04-01")).toBe(1071);
+    expect(shiftValueILS("pnimit", "2026-04-01")).toBe(833);
+  });
+
+  it("pays חג like Saturday, even on a weekday", () => {
+    // 2026-04-02 (פסח) is a Thursday
+    expect(shiftValueILS("miyun_klali", "2026-04-02")).toBe(1428);
+    expect(shiftValueILS("pnimit", "2026-04-02")).toBe(1190);
+  });
+
+  it("pays חול המועד סוכות like Friday", () => {
+    // 2026-09-29 is a Tuesday, inside chol hamoed sukkot
+    expect(shiftValueILS("miyun_klali", "2026-09-29")).toBe(1071);
+    expect(shiftValueILS("pnimit", "2026-09-29")).toBe(833);
+  });
 });
 
 describe("formatILS", () => {
