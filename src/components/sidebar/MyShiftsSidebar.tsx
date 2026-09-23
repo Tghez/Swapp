@@ -15,9 +15,9 @@ import { formatLocation, getDepartment } from "@/lib/domain/departments";
 import { formatFullDate } from "@/lib/date/calendar";
 import { parseDateKey } from "@/lib/date/monthWindow";
 import { deleteShift, markShiftHandedOff, reopenShift } from "@/lib/data/shifts";
-import { buildAnahHandoffEmailUrl } from "@/lib/email";
+import { buildAnahHandoffEmailUrl, buildAnahSwapEmailUrl } from "@/lib/email";
 import { useBrowsableMonths, useMyShifts, useNow } from "@/hooks/useShiftData";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useAuth, useDisplayName } from "@/components/providers/AuthProvider";
 import { HandoffForm } from "@/components/handoff/HandoffForm";
 import type { Shift } from "@/lib/domain/types";
 
@@ -31,10 +31,12 @@ import type { Shift } from "@/lib/domain/types";
  * ("התחרטתי").
  */
 export function MyShiftsSidebar() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const displayName = useDisplayName();
   const now = useNow();
   const months = useBrowsableMonths(now);
   const { data: shifts, loading, error } = useMyShifts(user?.uid, months);
+  const [showWhatNow, setShowWhatNow] = useState(false);
 
   return (
     <Card className="flex flex-col gap-4">
@@ -44,6 +46,14 @@ export function MyShiftsSidebar() {
           + הוספה
         </ButtonLink>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setShowWhatNow(true)}
+        className="self-start text-xs font-semibold text-primary underline"
+      >
+        עשיתי SWAPP - מה עכשיו?
+      </button>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -60,6 +70,13 @@ export function MyShiftsSidebar() {
           ))}
         </ul>
       )}
+
+      <WhatNowNotice
+        ownerName={displayName}
+        ownerEmail={profile?.email || user?.email || ""}
+        open={showWhatNow}
+        onClose={() => setShowWhatNow(false)}
+      />
     </Card>
   );
 }
@@ -241,11 +258,13 @@ function MiyunKlaliHandoffNotice({
   open: boolean;
   onClose: () => void;
 }) {
-  const emailUrl = buildAnahHandoffEmailUrl({
+  const emailContext = {
     date: shift.date,
     ownerName: shift.ownerName,
     ownerEmail: shift.ownerEmail,
-  });
+  };
+  const handoffEmailUrl = buildAnahHandoffEmailUrl(emailContext);
+  const swapEmailUrl = buildAnahSwapEmailUrl(emailContext);
 
   return (
     <Modal open={open} title="איזה כיף, נמצאה החלפה! 🎉" onClose={onClose}>
@@ -268,13 +287,76 @@ function MiyunKlaliHandoffNotice({
           </ul>
         </div>
 
-        <ExternalButtonLink href={emailUrl} className="self-start">
-          שלח מייל
-        </ExternalButtonLink>
+        <div className="flex flex-wrap gap-2">
+          <ExternalButtonLink href={handoffEmailUrl}>
+            מייל מסירה
+          </ExternalButtonLink>
+          <ExternalButtonLink href={swapEmailUrl} variant="secondaryFilled">
+            מייל החלפה
+          </ExternalButtonLink>
+        </div>
 
         <p className="font-bold">
           ללא שליחת המייל וקבלת האישור, המשמרת נשארת על שמכם.
         </p>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * General "what now" guidance, reachable any time from the sidebar rather
+ * than only right after marking a shift handed off — an intern who settled
+ * things over WhatsApp a while ago and comes back to mark מסרתי later still
+ * needs to see this.
+ */
+function WhatNowNotice({
+  ownerName,
+  ownerEmail,
+  open,
+  onClose,
+}: {
+  ownerName: string;
+  ownerEmail: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const emailContext = { ownerName, ownerEmail };
+  const handoffEmailUrl = buildAnahHandoffEmailUrl(emailContext);
+  const swapEmailUrl = buildAnahSwapEmailUrl(emailContext);
+
+  return (
+    <Modal open={open} title="עשיתי SWAPP - מה עכשיו?" onClose={onClose}>
+      <div className="flex flex-col gap-3 text-sm text-text">
+        <p>הצלחתי למסור? מעולה! מה לעשות עכשיו:</p>
+
+        <ol className="list-decimal flex flex-col gap-2 pr-5">
+          <li>
+            סמן מסרתי - זה מאוד עוזר לנו לעקוב ויחסוך לך הודעות מיותרות
+          </li>
+          <li>
+            אישור ההחלפה מול הגורמים הרלוונטים במחלקה. במידה ומדובר בתורנות
+            מלר&quot;ד - שלחו מייל לאנה:{" "}
+            <a
+              href="mailto:annah@tlvmc.gov.il"
+              className="font-bold text-primary underline"
+              dir="ltr"
+            >
+              annah@tlvmc.gov.il
+            </a>
+            , {"כתבו את המייל של הסטאז'ר המחליף"} וציינו שמות מלאים, תאריכים
+            ות&quot;ז.
+          </li>
+        </ol>
+
+        <div className="flex flex-wrap gap-2">
+          <ExternalButtonLink href={handoffEmailUrl}>
+            מייל מסירה
+          </ExternalButtonLink>
+          <ExternalButtonLink href={swapEmailUrl} variant="secondaryFilled">
+            מייל החלפה
+          </ExternalButtonLink>
+        </div>
       </div>
     </Modal>
   );
