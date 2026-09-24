@@ -38,6 +38,7 @@ export function UpcomingUrgentShifts() {
         shift={shift}
         isOwn={shift.ownerId === (user?.uid ?? "")}
         dateLabel={formatFullDate(parseDateKey(shift.date))}
+        showDate
       />
     );
   }

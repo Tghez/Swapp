@@ -124,10 +124,17 @@ interface ShiftDetailProps {
   shift: Shift;
   isOwn: boolean;
   dateLabel: string;
+  /** Lists that span several days need the date on each card; the day modal already headlines it. */
+  showDate?: boolean;
 }
 
 /** The single-shift card — also reused by the landing page's דחיפות list. */
-export function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
+export function ShiftDetail({
+  shift,
+  isOwn,
+  dateLabel,
+  showDate = false,
+}: ShiftDetailProps) {
   const department = getDepartment(shift.department);
   const location = formatLocation(shift.department, shift.internalUnit);
   const handedOff = shift.status === "handedOff";
@@ -163,6 +170,12 @@ export function ShiftDetail({ shift, isOwn, dateLabel }: ShiftDetailProps) {
       </div>
 
       <dl className="mt-2 flex flex-col gap-1 text-sm text-text/80">
+        {showDate && (
+          <div className="flex gap-2">
+            <dt className="font-semibold">תאריך:</dt>
+            <dd className="font-bold text-text">{dateLabel}</dd>
+          </div>
+        )}
         <div className="flex gap-2">
           <dt className="font-semibold">מוסר/ת:</dt>
           <dd>{shift.ownerName}</dd>
