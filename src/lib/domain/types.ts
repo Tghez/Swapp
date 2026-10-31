@@ -55,9 +55,7 @@ export interface HandoffInput {
 /**
  * One intern's posting activity for one month — mirrors what `firestore.rules`
  * enforces on `quotas/{uid}__{monthKey}`. `dates` holds one key per date the
- * intern currently has a shift on; its size is the monthly count (PDR §6.2's
- * four-a-month cap needs no separate counter, since "at most one shift per
- * date" already makes the two equal).
+ * intern currently has a shift on. There is no monthly cap on its size.
  */
 export interface Quota {
   uid: string;

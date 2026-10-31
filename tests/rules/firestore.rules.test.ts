@@ -232,15 +232,14 @@ describe("quotas", () => {
     });
   });
 
-  it("allows a fourth shift and rejects a fifth, at the server", async () => {
+  it("imposes no monthly cap, at the server", async () => {
     const bob = db(BOB);
     // Distinct from the "shift-1" seeded in beforeEach (owned by Alice), or
     // Bob's write would be evaluated as an update on her doc, not a create.
-    await postShift(bob, "bob-shift-1", "2026-08-01");
-    await postShift(bob, "bob-shift-2", "2026-08-02");
-    await postShift(bob, "bob-shift-3", "2026-08-03");
-    await assertSucceeds(postShift(bob, "bob-shift-4", "2026-08-04"));
-    await assertFails(postShift(bob, "bob-shift-5", "2026-08-05"));
+    for (let i = 1; i <= 5; i++) {
+      await postShift(bob, `bob-shift-${i}`, `2026-08-0${i}`);
+    }
+    await assertSucceeds(postShift(bob, "bob-shift-6", "2026-08-06"));
   });
 
   it("allows the first urgent shift of the month", async () => {

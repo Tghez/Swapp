@@ -97,9 +97,7 @@ service cloud.firestore {
      * "claim" nor the "release" branch below is satisfied and the update is
      * denied, taking the whole batch (and the shift write) down with it.
      *
-     * "At most four shifts per month, counting shifts still on the books":
-     * one shift always claims exactly one date, so dates.size() *is* the
-     * monthly count — no separate counter field to keep in sync.
+     * There is deliberately no monthly cap on how many dates may be claimed.
      *
      * "One דחיפות per month": urgentShiftId may only move null -> a value
      * (claim) or a value -> null (release, on delete); a second urgent shift
@@ -107,7 +105,7 @@ service cloud.firestore {
      *
      * Map keys can't be regex-validated the way a plain field could (unlike
      * the old dailyLocks.date), so nothing stops a forged write claiming a
-     * garbage date string as long as the size math holds — accepted, since
+     * garbage date string as long as it adds exactly one key — accepted, since
      * the damage is self-scoped to the caller's own doc, uid-gated like
      * everything else here.
      */
@@ -134,7 +132,6 @@ service cloud.firestore {
           ( // claiming a new date
             incoming().dates.diff(resource.data.dates).addedKeys().size() == 1
             && incoming().dates.diff(resource.data.dates).removedKeys().size() == 0
-            && incoming().dates.size() <= 4
             && (
               incoming().get('urgentShiftId', null) == resource.data.get('urgentShiftId', null)
               || (resource.data.get('urgentShiftId', null) == null

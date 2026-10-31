@@ -91,20 +91,18 @@ One deliberate choice worth not "fixing":
    **shift's** month, not the posting month — that is what lets `deleteShift`
    release it.
 
-3. **An intern may hold at most one shift per date and 4 a month, counting
-   shifts still on the books.** The daily limit is per **shift date**, not per
-   day of posting — an intern can post several shifts in one sitting as long
-   as no two land on the same date. Both limits live on the same
-   `quotas/{uid}__{monthKey}` doc: `createShift` claims the shift's date as a
-   key in its `dates` map (re-claiming an already-claimed date is a no-op
-   change the rules reject, enforcing the daily limit) in the same batch as
-   the shift; the four-a-month cap needs no separate counter, since one shift
-   always claims exactly one date, so `dates.size()` *is* the count, capped
-   at 4 by the rules. `deleteShift` removes the date key again, so the cap and
-   the per-date limit track shifts currently posted rather than shifts ever
+3. **An intern may hold at most one shift per date, counting shifts still on
+   the books.** There is no monthly cap (the PDR's four-a-month limit was
+   removed on purpose). The limit is per **shift date**, not per day of
+   posting — an intern can post several shifts in one sitting as long as no
+   two land on the same date. It lives on the `quotas/{uid}__{monthKey}` doc:
+   `createShift` claims the shift's date as a key in its `dates` map
+   (re-claiming an already-claimed date is a no-op change the rules reject)
+   in the same batch as the shift. `deleteShift` removes the date key again,
+   so the limit tracks shifts currently posted rather than shifts ever
    posted — a shift marked handed off via `markShiftHandedOff` stays on the
-   books (and counted) since only deletion frees the slot, and deleting a
-   shift lets the intern immediately re-post on that same date.
+   books since only deletion frees the date, and deleting a shift lets the
+   intern immediately re-post on that same date.
 
 4. **`monthKey` must equal `date[0:7]`** — rules enforce it. A shift whose keys
    disagree would be invisible in the month it belongs to.

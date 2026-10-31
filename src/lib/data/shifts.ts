@@ -118,11 +118,9 @@ export function subscribeToShiftsForMonths(
  * Written as one batch so all of its effects land together or not at all: the
  * shift itself, the profile upsert that makes the form self-filling next
  * time, and one write to the intern's `quotas/{uid}__{monthKey}` doc that
- * covers all three posting limits at once (PDR §6.2): it claims this date in
+ * covers both posting limits at once (PDR §6.2): it claims this date in
  * the doc's `dates` map (a repeat date is a no-op change the rules reject,
- * enforcing "at most one shift per date"), whose key count the rules cap at 4
- * (enforcing the monthly limit — no separate counter needed, since one shift
- * always claims exactly one date), and — when דחיפות is ticked — claims
+ * enforcing "at most one shift per date"), and — when דחיפות is ticked — claims
  * `urgentShiftId`, which the rules only allow to move from null to a value.
  *
  * The `set(..., {merge:true})` call works whether this is the intern's first
@@ -194,9 +192,9 @@ export async function createShift(
 /**
  * Deletes a shift, which in this app means "I handed it off" (PDR §6.1).
  *
- * Releases this date from the intern's quota doc (so the date and, if this
- * was the month's fourth shift, a monthly slot are free again if the intern
- * regrets the delete and wants to re-post) and, for an urgent shift, clears
+ * Releases this date from the intern's quota doc (so the date is free again
+ * if the intern regrets the delete and wants to re-post) and, for an urgent
+ * shift, clears
  * `urgentShiftId` too, so deleting a mistaken post does not cost the intern
  * their דחיפות for the month. A shift marked handed off via
  * {@link markShiftHandedOff} stays on the books (and counted) instead, since

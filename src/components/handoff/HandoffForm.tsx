@@ -125,7 +125,7 @@ export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
     : null;
 
   /**
-   * The live pre-check: one small doc per intern per month covers all three
+   * The live pre-check: one small doc per intern per month covers both
    * posting limits at once (`firestore.rules`' `quotas/{uid}__{monthKey}`),
    * so this subscription is the single source of truth the submit button is
    * gated on — no more deriving limits by scanning `myShifts`, which could
@@ -163,7 +163,6 @@ export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
   const evaluation =
     !submitting && values.date ? evaluateQuota(quota, values.date) : null;
   const dailyBlocked = evaluation?.dailyBlocked ?? false;
-  const monthlyBlocked = evaluation?.monthlyBlocked ?? false;
   const urgentBlocked = evaluation?.urgentBlocked ?? false;
 
   // Derived, not corrected after the fact: ticking the box and then moving to
@@ -204,10 +203,6 @@ export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
 
     if (dailyBlocked) {
       setErrors({ date: "כבר פרסמת תורנות בתאריך הזה" });
-      return;
-    }
-    if (monthlyBlocked) {
-      setErrors({ date: "פרסמת כבר 4 תורנויות החודש — זו המכסה" });
       return;
     }
 
@@ -296,16 +291,12 @@ export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
           onChange={(value) => update("date", value)}
           error={
             errors.date ||
-            (dailyBlocked
-              ? "כבר פרסמת תורנות בתאריך הזה"
-              : monthlyBlocked
-                ? "פרסמת כבר 4 תורנויות החודש — זו המכסה"
-                : undefined)
+            (dailyBlocked ? "כבר פרסמת תורנות בתאריך הזה" : undefined)
           }
           min={dateKeyOf(range.min)}
           max={dateKeyOf(range.max)}
           hint={
-            dailyBlocked || monthlyBlocked
+            dailyBlocked
               ? undefined
               : quotaLoading
                 ? "בודק זמינות…"
@@ -399,7 +390,6 @@ export function HandoffForm({ shift, onSaved }: HandoffFormProps = {}) {
           submitting ||
           quotaLoading ||
           dailyBlocked ||
-          monthlyBlocked ||
           noteWords > NOTE_MAX_WORDS ||
           noteTooLong
         }
